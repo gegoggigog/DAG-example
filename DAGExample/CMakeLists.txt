@@ -31,6 +31,7 @@ target_link_libraries(my_exe
 		DAGConstructor
 		Voxelizer
 		glTFLoader
+		ColorCompression
 )
 add_custom_target(copy_dlls
     COMMAND ${CMAKE_COMMAND} -E copy_directory

@@ -15,6 +15,7 @@
 
 #include "glTFLoader/glTFLoader.h"
 #include "voxelize_and_merge.h"
+#include "ColorCompression/ours_varbit.h"
 
 using glm::ivec2;
 using glm::vec2;
@@ -189,40 +190,62 @@ struct AppState {
 int main(int argc, char *argv[]) {
 	init();
 
-	constexpr int dag_resolution{4096*2};
+	constexpr int dag_resolution{1024};
 	auto dag = DAG_from_scene(dag_resolution, R"(..\..\assets\Sponza\glTF\)", "Sponza.gltf");
-	//dag->calculateColorForAllNodes();
-	DAGTracer dag_tracer;
-	dag_tracer.resize(screen_dim.x, screen_dim.y);
+  //auto dag = DAG_from_scene(dag_resolution, R"(..\..\assets\FlightHelmet\)", "FlightHelmetFinal.gltf");
+  if (!dag)
+  {
+    std::cout << "Could not construct dag, assert file path.";
+  }
+  else
+  {
+    DAGTracer dag_tracer;
+    dag_tracer.resize(screen_dim.x, screen_dim.y);
 
-	if(dag)
-	{
-		upload_to_gpu(*dag);
-		AppState app;
-		app.camera.lookAt(vec3{0.0f, 1.0f, 0.0f}, vec3{0.0f, 0.0f, 0.0f});
-		while (app.loop) {
-			app.frame_timer.start();
-			app.handle_events();
+    //dag->calculateColorForAllNodes();
+    ours_varbit::OursData compressed_color = ours_varbit::compressColors_alternative_par(dag->m_base_colors, 0.025f, ours_varbit::ColorLayout::RGB_5_6_5);
+    ours_varbit::upload_to_gpu(compressed_color);
 
-			const int color_lookup_lvl = dag->nofGeometryLevels();
-			dag_tracer.resolve_paths(*dag, app.camera, color_lookup_lvl);
-			dag_tracer.resolve_colors(*dag, color_lookup_lvl);
+    ColorData tmp;
+    tmp.bits_per_weight = compressed_color.bits_per_weight;
+    tmp.nof_blocks = compressed_color.nof_blocks;
+    tmp.nof_colors = compressed_color.nof_colors;
+    tmp.d_block_colors = compressed_color.d_block_colors;
+    tmp.d_block_headers = compressed_color.d_block_headers;
+    tmp.d_macro_w_offset = compressed_color.d_macro_w_offset;
+    tmp.d_weights = compressed_color.d_weights;
+    dag_tracer.m_compressed_colors = tmp;
+    
 
-			glUseProgram(copy_shader);
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, dag_tracer.m_color_buffer.m_gl_idx);
-			glUniform1i(renderbuffer_uniform, 0);
-			glActiveTexture(GL_TEXTURE0);
-			glDrawArrays(GL_TRIANGLES, 0, 3);
 
-			SDL_GL_SwapWindow(mainWindow);
-			app.frame_timer.end();
-		}
-	}
+    upload_to_gpu(*dag);
+    AppState app;
+    app.camera.lookAt(vec3{ 0.0f, 1.0f, 0.0f }, vec3{ 0.0f, 0.0f, 0.0f });
+    while (app.loop)
+    {
+      app.frame_timer.start();
+      app.handle_events();
 
-	SDL_GL_DeleteContext(mainContext);
-	SDL_DestroyWindow(mainWindow);
-	SDL_Quit();
+      const int color_lookup_lvl = dag->nofGeometryLevels();
+      dag_tracer.resolve_paths(*dag, app.camera, color_lookup_lvl);
+      dag_tracer.resolve_colors(*dag, color_lookup_lvl);
+
+      glViewport(0, 0, screen_dim.x, screen_dim.y);
+      glUseProgram(copy_shader);
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, dag_tracer.m_color_buffer.m_gl_idx);
+      glUniform1i(renderbuffer_uniform, 0);
+      glActiveTexture(GL_TEXTURE0);
+      glDrawArrays(GL_TRIANGLES, 0, 3);
+
+      SDL_GL_SwapWindow(mainWindow);
+      app.frame_timer.end();
+    }
+
+    SDL_GL_DeleteContext(mainContext);
+    SDL_DestroyWindow(mainWindow);
+    SDL_Quit();
+  }
 	return 0;
 }
 

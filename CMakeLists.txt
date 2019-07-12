@@ -51,6 +51,7 @@ add_subdirectory("DAGExample/DAGTracer")
 add_subdirectory("DAGExample/DAGLoader")
 add_subdirectory("DAGExample/Voxelizer")
 add_subdirectory("DAGExample/glTFLoader")
+add_subdirectory("DAGExample/ColorCompression")
 #########################################################
 
 add_subdirectory(DAGExample)
