@@ -597,13 +597,12 @@ __global__ void scorefunction_gpu_warp(
     // ~fit
 
     // evaluate
-    bool bEval = false;
+    bool bEval = true;
     float mse = 0.0f;
     if (K > 1)
     {
       if (range == 1)
       {
-        bEval = true;
         if (getError(minpoint, colors[start], minmaxcorrection) > error_treshold ||
             getError(maxpoint, colors[start], minmaxcorrection) > error_treshold)
         {
@@ -612,17 +611,14 @@ __global__ void scorefunction_gpu_warp(
       }
       else if (range == 2)
       {
-        bEval = true;
         if (getError(minpoint, colors[start], minmaxcorrection) > error_treshold ||
             getError(maxpoint, colors[start + 1], minmaxcorrection) > error_treshold)
         {
           bEval = false;
         }
       }
-
       else
       {
-        bEval = true;
         float msesum = 0.0f;
 
         const float3 & A = minpoint;
@@ -664,7 +660,6 @@ __global__ void scorefunction_gpu_warp(
     }
     else
     {
-      bEval = true;
       float msesum = 0.0f;
       for (int i = start + laneId; i < start + range; i += 32)
       {
