@@ -356,63 +356,30 @@ __device__ float3 minmaxSingleCorrectedColor(const float3 &c, ColorLayout layout
 ///////////////////////////////////////////////////////////////////////
 // Get the "error" between two colors. Should be perceptually sane. 
 ///////////////////////////////////////////////////////////////////////
-__device__ __forceinline float getError(const float3 & a_, const float3 & b_, bool minmax_correction, bool laberr) {
-	auto a = a_;
-	auto b = b_;
-	if (minmax_correction) {
-		a = rgb888_to_float3(float3_to_rgb888(a));
-		b = rgb888_to_float3(float3_to_rgb888(b));
-	}
-	if (laberr) {
-		colorspace::sRGB a_srgb{ a.x, a.y, a.z };
-		colorspace::sRGB b_srgb{ b.x, b.y, b.z };
-		auto a_lab = colorspace::as_Lab(a_srgb);
-		auto b_lab = colorspace::as_Lab(b_srgb);
-		auto A = make_float3(a_lab.L / 256.0f, a_lab.a / 256.0f, a_lab.b / 256.0f);
-		auto B = make_float3(b_lab.L / 256.0f, b_lab.a / 256.0f, b_lab.b / 256.0f);
-		return length(A - B);
-	}
-	////a.z = 0.0001f;
-	////b.z = 0.0001f;
-	//float len = length(a - b);
-	//a = normalize(a);
-	//b = normalize(b);
-	//return (1.0 - dot(a,b))*len;
-	return length(a - b);
+__device__ __forceinline
+float3 minmax_correctred(const float3 &c)
+{
+  return rgb888_to_float3(float3_to_rgb888(c));
+}
+
+__device__ __forceinline
+float getErrorSquared(const float3 & c1, const float3 & c2, bool minmax_correction)
+{
+  const float3 err_vec = minmax_correction ?
+    minmax_correctred(c1) - minmax_correctred(c2) :
+    c1 - c2;
+  return
+    err_vec.x * err_vec.x +
+    err_vec.y * err_vec.y +
+    err_vec.z * err_vec.z;
 };
 
-__device__ __forceinline float getErrorPerChannel(const float3 & a_, const float3 & b_, bool minmax_correction, bool laberr) {
-	auto a = a_;
-	auto b = b_;
-	if (minmax_correction) {
-		a = rgb888_to_float3(float3_to_rgb888(a));
-		b = rgb888_to_float3(float3_to_rgb888(b));
-	}
-	if (laberr) {
-		colorspace::sRGB a_srgb{ a.x, a.y, a.z };
-		colorspace::sRGB b_srgb{ b.x, b.y, b.z };
-		auto a_lab = colorspace::as_Lab(a_srgb);
-		auto b_lab = colorspace::as_Lab(b_srgb);
-		auto A = make_float3(a_lab.L / 256.0f, a_lab.a / 256.0f, a_lab.b / 256.0f);
-		auto B = make_float3(b_lab.L / 256.0f, b_lab.a / 256.0f, b_lab.b / 256.0f);
-		float x = A.x - B.x;
-		float y = A.y - B.y;
-		float z = A.z - B.z;
-		return x*x + y*y + z*z;
-	}
-	////a.z = 0.0001f;
-	////b.z = 0.0001f;
-	//float len = length(a - b);
-	//a = normalize(a);
-	//b = normalize(b);
-	//return (1.0 - dot(a,b))*len;
-	//a = normalize(a);
-	//b = normalize(b);
-	float x = a.x - b.x;
-	float y = a.y - b.y;
-	float z = a.z - b.z;
-	return x*x + y*y + z*z;
+__device__ __forceinline
+float getError(const float3 & c1, const float3 & c2, bool minmax_correction)
+{
+  return sqrt(getErrorSquared(c1, c2, minmax_correction));
 };
+
 
 
 #define FULL_MASK 0xffffffff
@@ -606,13 +573,13 @@ __global__ void scorefunction_gpu_warp(
 		if (K > 1) {
 			if (range == 1) {
 				bEval = true;
-				if (getError(minpoint, colors[start], minmaxcorrection, laberr) > error_treshold || getError(maxpoint, colors[start], minmaxcorrection, laberr) > error_treshold) {
+				if (getError(minpoint, colors[start], minmaxcorrection) > error_treshold || getError(maxpoint, colors[start], minmaxcorrection) > error_treshold) {
 					bEval = false;
 				}
 			}
 			else if (range == 2) {
 				bEval = true;
-				if (getError(minpoint, colors[start], minmaxcorrection, laberr) > error_treshold || getError(maxpoint, colors[start + 1], minmaxcorrection, laberr) > error_treshold) {
+				if (getError(minpoint, colors[start], minmaxcorrection) > error_treshold || getError(maxpoint, colors[start + 1], minmaxcorrection) > error_treshold) {
 					bEval = false;
 				}
 			}
@@ -634,8 +601,8 @@ __global__ void scorefunction_gpu_warp(
 					float _w = clamp(round(distance * float(K - 1)), 0.0f, float(K - 1));
 					float3 interpolated_color = A + _w / float(K - 1) * (B - A);
 
-					float error = getError(p, interpolated_color, minmaxcorrection, laberr);
-					msesum += getErrorPerChannel(p, interpolated_color, minmaxcorrection, laberr);
+					float error = getError(p, interpolated_color, minmaxcorrection);
+					msesum += getErrorSquared(p, interpolated_color, minmaxcorrection);
 
 					if (error > error_treshold) {
 						bEval = false;
@@ -659,8 +626,8 @@ __global__ void scorefunction_gpu_warp(
 				const float3 & p = colors[i];
 				float3 interpolated_color = minpoint;
 
-				float error = getError(p, interpolated_color, minmaxcorrection, laberr);
-				msesum += getErrorPerChannel(p, interpolated_color, minmaxcorrection, laberr);
+				float error = getError(p, interpolated_color, minmaxcorrection);
+				msesum += getErrorSquared(p, interpolated_color, minmaxcorrection);
 				if (error > error_treshold) {
 					bEval = false;
 				}
