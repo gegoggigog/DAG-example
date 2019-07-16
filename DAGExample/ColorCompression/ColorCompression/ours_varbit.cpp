@@ -633,7 +633,7 @@ namespace ours_varbit {
         const float distance =
           length(B - A) < (1e-4f) ?
           0.0f :
-          sqrt(dot(p - A, B - A) / dot(B - A, B - A));
+          dot(p - A, B - A) / dot(B - A, B - A);
 
         auto calc_w = [&](const float distance)
         {
