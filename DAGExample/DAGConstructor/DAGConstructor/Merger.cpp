@@ -425,7 +425,7 @@ merge(const std::array<std::optional<dag::DAG>, 8> &batch)
 			std::accumulate(
 				dags.begin(),
 				dags.end(),
-				0,
+				0ull,
 				[](std::size_t acc, const dag::DAG *dag) { return acc + dag->m_base_colors.size(); }
 			);
 
