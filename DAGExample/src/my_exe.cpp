@@ -10,6 +10,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "DAG/DAG.h"
+#include "DAGLoader/DAGLoader.h"
 #include "DAGTracer/DAGTracer.h"
 #include "utils/view.h"
 
@@ -187,23 +188,68 @@ struct AppState {
 	}
 };
 
+constexpr bool load_cached{ true };
 int main(int argc, char *argv[]) {
+  //std::vector<uint32_t> v{ 1, 2, 3, 4, 5 };
+  //write_to_disc(R"(..\..\cache\dag.bin)", v);
+  //disc_array<uint32_t, 2> da{ R"(..\..\cache\dag.bin)" };
+  //std::cout
+  //  << "Size: "
+  //  << da.size()
+  //  << "\nElements\n";
+  //auto expect = [&](std::size_t i)
+  //{
+  //  auto daval = da[i];
+  //  std::cout
+  //    << "da[" << i << "] = " << daval << " expected " << v[i] << '\n';
+  //};
+  //expect(4);
+  //expect(3);
+  //expect(2);
+  //expect(1);
+  //expect(1);
+  //expect(3);
+  //expect(0);
+  //exit(0);
+
+
 	init();
 
-	constexpr int dag_resolution{1024};
-	auto dag = DAG_from_scene(dag_resolution, R"(..\..\assets\Sponza\glTF\)", "Sponza.gltf");
-  //auto dag = DAG_from_scene(dag_resolution, R"(..\..\assets\FlightHelmet\)", "FlightHelmetFinal.gltf");
+	constexpr int dag_resolution{4096*2*2};
+  //constexpr int dag_resolution{256};
+  std::optional<dag::DAG> dag;
+  if (load_cached)
+  {
+    dag = dag::cerealization::bin::load(R"(..\..\cache\dag.bin)");
+    if (dag)
+    {
+      //dag->m_base_colors = dag::cerealization::bin::load_vec<uint32_t>(R"(..\..\cache\colors.bin)");
+    }
+  }
+  else
+  {
+    dag = DAG_from_scene(dag_resolution, R"(..\..\assets\Sponza\glTF\)", "Sponza.gltf");
+  //dag = DAG_from_scene(dag_resolution, R"(..\..\assets\FlightHelmet\)", "FlightHelmetFinal.gltf");
+  }
   if (!dag)
   {
     std::cout << "Could not construct dag, assert file path.";
   }
   else
   {
+    if (!load_cached)
+    {
+      dag::cerealization::bin::save(*dag, R"(..\..\cache\dag.bin)");
+      dag::cerealization::bin::save_vec(dag->m_base_colors, R"(..\..\cache\colors.bin)");
+      write_to_disc(R"(..\..\cache\raw.bin)", dag->m_base_colors);
+    }
     DAGTracer dag_tracer;
     dag_tracer.resize(screen_dim.x, screen_dim.y);
+    disc_array<uint32_t, macro_block_size> da{ R"(..\..\cache\raw.bin)" };
 
     //dag->calculateColorForAllNodes();
-    ours_varbit::OursData compressed_color = ours_varbit::compressColors_alternative_par(dag->m_base_colors, 0.025f, ours_varbit::ColorLayout::RGB_5_6_5);
+    //ours_varbit::OursData compressed_color = ours_varbit::compressColors_alternative_par(dag->m_base_colors, 0.025f, ours_varbit::ColorLayout::RGB_5_6_5);
+    ours_varbit::OursData compressed_color = ours_varbit::compressColors_alternative_par(std::move(da), 0.025f, ours_varbit::ColorLayout::RGB_5_6_5);
     ours_varbit::upload_to_gpu(compressed_color);
 
     ColorData tmp;

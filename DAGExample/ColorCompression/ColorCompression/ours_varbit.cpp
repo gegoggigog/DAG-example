@@ -250,7 +250,6 @@ namespace ours_varbit {
   public:
     const unsigned bits_per_weight = 4;
     const int K = 1 << bits_per_weight;
-    const uint64_t macro_block_size = 16ull * 1024ull;
 
     const int COLOR_COST = 16 + 16;
     const int START_IDX_COST = 14;
@@ -258,8 +257,8 @@ namespace ours_varbit {
     const int BPW_ID_COST = 2;
     const int HEADER_COST = 32;
 
-    explicit CompressionState(vector<uint32_t>& original_colors, const float error_treshold_, const ColorLayout layout)
-      : original_colors_ref{ original_colors }
+    explicit CompressionState(disc_array<uint32_t, macro_block_size>&& original_colors, const float error_treshold_, const ColorLayout layout)
+      : original_colors_ref{ std::move(original_colors) }
       , error_treshold{ error_treshold_ }
       , compression_layout{ layout }
     {
@@ -340,7 +339,7 @@ namespace ours_varbit {
     bool use_LAB_error = false;
     bool use_minmax_correction = true;
 
-    vector<uint32_t>& original_colors_ref;
+    disc_array<uint32_t, macro_block_size> original_colors_ref;
     vector<uint32_t> m_weights;
 
     vector<uint32_t> h_weights;
@@ -1391,14 +1390,14 @@ namespace ours_varbit {
 
   OursData
     compressColors_alternative_par(
-      vector<uint32_t>& original_colors,
+      disc_array<uint32_t, macro_block_size>&& original_colors,
       const float error_treshold,
       const ColorLayout layout
     )
   {
     //ColorLayout layout = R_8;
     auto[nfo, result] =
-      CompressionState{ original_colors, error_treshold, layout }.compress();
+      CompressionState{ std::move(original_colors), error_treshold, layout }.compress();
     int n_channels =
       layout == RGB_5_6_5 ? 3 :
       layout == RG_8_8 ? 2 :
