@@ -5,7 +5,6 @@
 #include <vector>
 
 #include <fstream>
-#include <array>
 template<typename T>
 static void write_to_disc(const std::string file, const std::vector<T> &vec)
 {
@@ -16,18 +15,19 @@ static void write_to_disc(const std::string file, const std::vector<T> &vec)
   );
 }
 
-template<typename T, std::size_t _cache_size>
-class disc_array {
+template<typename T>
+class disc_vector {
 public:
-  disc_array(const disc_array&) = delete;
-  disc_array(disc_array&&) = default;
-  disc_array& operator=(const disc_array&) = delete;
-  disc_array& operator=(disc_array&&) = default;
-  virtual ~disc_array() = default;
-  disc_array(const std::string file) : ifs{ file, std::ifstream::binary | std::ifstream::in | std::ifstream::ate }
+  disc_vector(const disc_vector&) = delete;
+  disc_vector(disc_vector&&) = default;
+  disc_vector& operator=(const disc_vector&) = delete;
+  disc_vector& operator=(disc_vector&&) = default;
+  virtual ~disc_vector() = default;
+  disc_vector(const std::string file, std::size_t cache_size) : ifs{ file, std::ifstream::binary | std::ifstream::in | std::ifstream::ate }
   {
     const_cast<std::size_t&>(_size) = ifs.tellg() / sizeof(T);
     ifs.seekg(std::ifstream::beg);
+    _cache.resize(cache_size);
   };
 
   const T operator [] (std::size_t i) {
@@ -44,36 +44,35 @@ private:
   bool is_in_cache(const std::size_t i) const {
     //std::cout
     //  << "i: " << i << '\n'
-    //  << " _cache_size * _block:" << _cache_size * _block << '\n'
-    //  << " _cache_size * (_block + 1): " << _cache_size * (_block + 1) << '\n';
+    //  << " _cache.size() * _block:" << _cache.size() * _block << '\n'
+    //  << " _cache.size() * (_block + 1): " << _cache.size() * (_block + 1) << '\n';
     return
       _has_cache &&
-      _cache_size * _block <= i &&
-      _cache_size * (_block + 1) > i;
+      _cache.size() * _block <= i &&
+      _cache.size() * (_block + 1) > i;
   }
 
   void read_block(const std::size_t i) {
     //std::cout << "Read\n";
-    const std::size_t fasdas = ifs.gcount();
-    _block = i / _cache_size;
-    std::size_t read_start{ _block * _cache_size * sizeof(T) };
-    std::size_t max_read_to = _size * sizeof(T);
-    std::size_t bytes_to_read = _cache_size * sizeof(T);
-    std::size_t read_end = read_start + bytes_to_read;
+    _block = i / _cache.size();
+    const std::size_t read_start  = _block * _cache.size();
+    std::size_t num_to_read       = _cache.size();
+    const std::size_t read_end    = read_start + num_to_read;
+    const std::size_t max_read_to = _size;
     if (read_end > max_read_to)
     {
-      bytes_to_read = max_read_to - read_start;
+      num_to_read = max_read_to - read_start;
     }
-    ifs.seekg(read_start, std::ifstream::beg);
+    ifs.seekg(read_start * sizeof(T), std::ifstream::beg);
     ifs.read(
       reinterpret_cast<char*>(_cache.data()),
-      bytes_to_read
+      num_to_read * sizeof(T)
     );
     _has_cache = true;
   }
 
   std::ifstream ifs;
-  std::array<T, _cache_size> _cache{ 0 };
+  std::vector<T> _cache;
   bool _has_cache{ false };
   std::size_t _block{ 0 };
   const std::size_t _size{ 0 };
@@ -104,7 +103,7 @@ namespace ours_varbit {
 
   OursData compressColors_alternative_par(
     //std::vector<uint32_t> &original_colors,
-    disc_array<uint32_t, macro_block_size> &&original_colors,
+    disc_vector<uint32_t> &&original_colors,
     const float error_threshold,
     const ColorLayout layout
   );

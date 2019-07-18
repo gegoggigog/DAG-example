@@ -534,8 +534,8 @@ color_lookup_kernel_morton(
 
 	uint32_t color = 0x0000FF;
 	uint3 path = make_uint3(surf2Dread<uint4>(path_buffer, coord.x * sizeof(uint4), coord.y));
-	uint32_t nof_leaves = 0;
-	uint32_t final_color_idx = 0;
+	uint64_t nof_leaves = 0;
+	uint64_t final_color_idx = 0;
 	if (path != make_uint3(0, 0, 0)) {
 		uint32_t level = 0;
 		uint32_t node_index = 0;
@@ -779,7 +779,14 @@ color_lookup_kernel_morton(
     {
       decompressed_color = decompressed_color + (weight / float((1 << bpw) - 1)) * (get_maxcolor(bpw, header1) - decompressed_color);
     }
+
+    //const float t = float(final_color_idx) / pow(2.0f, 32.0f);
+    //const float t = float(macro_block_idx) / float(macro_block_count);
+    const float t = final_color_idx > (1ull << 31) ? 1.0 : 0.5;
+    //const float t = float(local_color_idx) / float(colors_per_macro_block);
+    decompressed_color = decompressed_color * t;
     color = float3_to_rgb888(decompressed_color);
+    //color = float3_to_rgb888(make_float3(t));
 
 #else
 		color = dag_color[final_color_idx];

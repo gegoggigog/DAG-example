@@ -17,6 +17,7 @@ target_link_libraries(DAGLoader
 	PRIVATE 
 		utils 
 		DAG
+		ColorCompression
 )
 
 target_include_directories( DAGLoader 

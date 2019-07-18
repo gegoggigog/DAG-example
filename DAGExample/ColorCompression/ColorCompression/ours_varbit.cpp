@@ -236,13 +236,13 @@ namespace ours_varbit {
   {
     vector<int> wrong_colors;
     vector<int> ok_colors;
-    int total_bits = 0;
-    int nof_blocks = 0;
-    uint64_t weights_size = 0;
+    std::size_t total_bits = 0;
+    std::size_t nof_blocks = 0;
+    std::size_t weights_size = 0;
+    std::size_t macro_header_size;
+    std::size_t headers_size;
+    std::size_t colors_size;
     double max_error = 0.0;
-    int macro_header_size;
-    int headers_size;
-    int colors_size;
   };
 
   class CompressionState
@@ -257,7 +257,7 @@ namespace ours_varbit {
     const int BPW_ID_COST = 2;
     const int HEADER_COST = 32;
 
-    explicit CompressionState(disc_array<uint32_t, macro_block_size>&& original_colors, const float error_treshold_, const ColorLayout layout)
+    explicit CompressionState(disc_vector<uint32_t>&& original_colors, const float error_treshold_, const ColorLayout layout)
       : original_colors_ref{ std::move(original_colors) }
       , error_treshold{ error_treshold_ }
       , compression_layout{ layout }
@@ -339,7 +339,7 @@ namespace ours_varbit {
     bool use_LAB_error = false;
     bool use_minmax_correction = true;
 
-    disc_array<uint32_t, macro_block_size> original_colors_ref;
+    disc_vector<uint32_t> original_colors_ref;
     vector<uint32_t> m_weights;
 
     vector<uint32_t> h_weights;
@@ -1390,7 +1390,7 @@ namespace ours_varbit {
 
   OursData
     compressColors_alternative_par(
-      disc_array<uint32_t, macro_block_size>&& original_colors,
+      disc_vector<uint32_t>&& original_colors,
       const float error_treshold,
       const ColorLayout layout
     )
