@@ -834,11 +834,8 @@ namespace ours_varbit {
           << h_block_headers.size()
           << '\n';
       }
-
-      const size_t part_size =
-        (part == nof_parts - 1) ?
-        (n_colors % macro_block_size) : macro_block_size;
-
+      
+      const size_t part_size = std::min(n_colors - part * macro_block_size, macro_block_size);
       const size_t part_start = part * macro_block_size;
       const vector<end_block> solution = compress_range(part_start, part_size);
       double max_error_eval =
