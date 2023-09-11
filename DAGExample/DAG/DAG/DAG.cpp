@@ -1,15 +1,10 @@
 #include "DAG.h"
+#include <iostream>
 #include <algorithm>
-#include <bitset>
-#include <limits>
+#include <chrono>
+#include "../popcnt.h"
 
 using namespace std;
-
-template <typename T>
-unsigned popcnt_safe(T v) {
-	return static_cast<unsigned>(std::bitset<std::numeric_limits<T>::digits>(v).count());
-}
-
 
 namespace dag {
 
@@ -22,13 +17,13 @@ bool calculate_sizes(const int node_idx, const int level, const std::vector<uint
 		// This is a 4x4x4 leaf node (64 bits)
 		pointerless_svo_size += 8;
 		traversable_svo_size += 8;
-		leaf_voxels += popcnt_safe(dag[node_idx]) + popcnt_safe(dag[node_idx + 1]);
+		leaf_voxels += popcnt(dag[node_idx]) + popcnt(dag[node_idx + 1]);
 		if (!visited[node_idx]) dag_size += 8;
 		visited[node_idx] = true;
 		return true;
 	} else {
 		uint32_t childmask = dag[node_idx] & 0xFF;
-		int nof_subnodes   = popcnt_safe(childmask);
+		int nof_subnodes   = popcnt(childmask);
 		pointerless_svo_size += 1;
 		traversable_svo_size += 4;
 		if (!visited[node_idx]) dag_size += 4;
@@ -42,7 +37,8 @@ bool calculate_sizes(const int node_idx, const int level, const std::vector<uint
 		return true;
 	}
 }
-
+	
+#if 0
 void DAG::calculateColorForAllNodes() {
 	colors_in_all_nodes = true;
 	// Traverse the whole DAG. Keep track of:
@@ -62,18 +58,18 @@ void DAG::calculateColorForAllNodes() {
 	////////////////////////////////////////////////////
 	// PASS 1: Calculate new color index for each node
 	////////////////////////////////////////////////////
-	uint32_t n_child_offset = 0;
+	uint64_t n_child_offset = 0;
 	for(int level = m_levels - 1 ; level >=0; --level)
 	{
 		for( uint32_t node_index = 0; node_index<m_data[level].size();)
 		{
 			uint32_t &node_mask = m_data[level][node_index];
-			unsigned n_children = popcnt_safe(node_mask & 0xFF);
+			unsigned n_children = popcnt(node_mask & 0xFF);
 			// Current node
 			n_child_offset = 1;
 			if (level == m_levels - 1) 
 			{
-				for(int i = 0; i<n_children; ++i)
+				for(int i = 0; i<(int)n_children; ++i)
 				{
 					n_child_offset += 1; // 4x4x4 node
 					const uint32_t n_index          = m_data[level][node_index + 1 + i];
@@ -91,16 +87,16 @@ void DAG::calculateColorForAllNodes() {
 						n_child_offset += (current_leafmask & 0xFF00000000000000) == 0 ? 0 : 1;
 					}
 					// 1x1x1 nodes
-					n_child_offset += popcnt_safe(current_leafmask);
+					n_child_offset += popcnt(current_leafmask);
 				}
 			}
 			else
 			{
-				for(int i = 0; i<n_children; ++i)
+				for(int i = 0; i<(int)n_children; ++i)
 				{
 					const uint32_t n_index    = m_data[level][node_index + 1 + i];
 					const uint32_t child_mask = m_data[level+1][n_index];
-					if(level + 1 < m_top_levels)
+					if(level + 1 < (int)m_top_levels)
 					{
 						n_child_offset += m_enclosed_leaves[(child_mask >> 8)];
 					}
@@ -114,12 +110,14 @@ void DAG::calculateColorForAllNodes() {
 			// We don't store nodes in subtree for root.
 			if(level != 0)
 			{
-				if(level < m_top_levels)
+			    assert(n_child_offset != 0);
+				if(level < (int)m_top_levels)
 				{
 					m_enclosed_leaves[node_mask >> 8] = n_child_offset;
 				}
 				else 
 				{
+				    assert(n_child_offset < (1 << 24));
 					node_mask = (node_mask & 0xFF) | (n_child_offset << 8);
 				}
 			}
@@ -202,9 +200,13 @@ void DAG::calculateColorForAllNodes() {
 			// There are children left to test in current node.
 			unsigned long next_child;
 			//_BitScanReverse(&next_child, curr_se.child_mask);
+#ifdef _MSC_VER
 			_BitScanForward(&next_child, curr_se.test_mask);
+#else
+			next_child = __builtin_ffs(curr_se.test_mask) - 1;
+#endif
 			curr_se.test_mask &= ~(1 << next_child);
-			uint32_t node_offset = __popcnt((curr_se.child_mask & 0xFF) & ((1 << next_child) - 1)) + 1;
+			uint32_t node_offset = popcnt((curr_se.child_mask & 0xFF) & ((1 << next_child) - 1)) + 1;
 
 			stack[stack_level] = curr_se;
 			stack_level += 1;
@@ -268,4 +270,5 @@ void DAG::calculateColorForAllNodes() {
 
 	m_base_colors = all_base_colors;
 }
+#endif
 }  // namespace dag

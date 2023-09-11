@@ -1,11 +1,11 @@
-#include "DAGConstructor.h"
+#include "DAGConstructor.cuh"
 // C-STD
 #include <stdint.h>
-//#include <intrin.h>
 #include <algorithm>
+#include <sstream>
+#include <math.h>
 // CUDA
 #include <cuda_runtime.h>
-#include <math.h>
 // THRUST
 #include <thrust/functional.h>
 #include <thrust/device_ptr.h>
@@ -23,11 +23,79 @@
 // PROJECT
 #include "../CudaHelpers.h" //FIXME: Proper search paths
 #include "../hash.h"        //FIXME: Proper search paths
+#include "../popcnt.h"
+#include "DAG/DAG.h"
+
+
+#ifndef __CUDACC__
+#include <tracy/Tracy.hpp>
+#else
+#define ZoneScoped {}
+#define ZoneScopedN(x) {}
+#define ZoneText(x, y) {}
+#define ZoneName(x,y) {}
+#endif
+
+
+namespace thrust2
+{
+#define THRUST_FWD2(type, name) \
+	template<typename... TArgs> \
+	type name(std::uint64_t size, TArgs&&... args) \
+	{ \
+		ZoneScoped; \
+		std::stringstream ss; \
+		ss << #name << "; count: " << size; \
+		const auto str = ss.str(); \
+		ZoneName(str.c_str(), str.size()); \
+		return thrust::name(std::forward<TArgs>(args)...); \
+	}
+	
+	THRUST_FWD2(void, sequence);
+	THRUST_FWD2(void, sort_by_key);
+	THRUST_FWD2(auto, min);
+	THRUST_FWD2(auto, max);
+	THRUST_FWD2(auto, gather);
+	THRUST_FWD2(auto, copy_n);
+	THRUST_FWD2(auto, unique);
+	THRUST_FWD2(auto, distance);
+	THRUST_FWD2(auto, transform);
+	THRUST_FWD2(auto, unique_copy);
+	THRUST_FWD2(auto, reduce_by_key);
+	THRUST_FWD2(auto, inclusive_scan);
+	THRUST_FWD2(auto, exclusive_scan);
+	THRUST_FWD2(auto, adjacent_difference);
+}
+
+#define SIZE(X) X,
+
+template<typename... TArgs>
+auto cudaMemcpy2(TArgs&&... args) { ZoneScopedN("cudaMemcpy"); return cudaMemcpy(std::forward<TArgs>(args)...); }
+
+template<typename T>
+void copy_to_device(thrust::device_vector<T>& dev, T* dev_ptr, const std::size_t size) {
+	ZoneScoped;
+	dev.resize(size);
+	thrust2::copy_n(
+		SIZE(size)
+		thrust::device_ptr<T>{dev_ptr},
+		size,
+		dev.begin()
+	);
+}
+
+void DAGConstructor_impl::upload_path(uint64_t* pos, int count) {
+	copy_to_device(this->path, pos, count);
+}
+
+void DAGConstructor_impl::upload_colors(uint32_t* col, int count) {
+	//copy_to_device(this->base_color, pos, count);
+}
 
 uint32_t count_child_nodes(int lvl, int bottomlevel, uint32_t node_idx, std::vector<std::vector<uint32_t>> *dag) {
 	if (lvl == bottomlevel) {
-		auto a = __popcnt((*dag)[lvl][node_idx]);
-		auto b = __popcnt((*dag)[lvl][node_idx + 1]);
+		auto a = popcnt((*dag)[lvl][node_idx]);
+		auto b = popcnt((*dag)[lvl][node_idx + 1]);
 		return a + b;
 	}
 	uint32_t n_children = 0;
@@ -48,58 +116,12 @@ uint32_t count_child_nodes(int lvl, int bottomlevel, uint32_t node_idx, std::vec
 	return n_children;
 }
 
-struct DAGConstructor::impl {
-	std::size_t m_num_colors;
-	int m_cached_num_colors;
-	int m_cached_frag_count;
-
-	thrust::device_vector<uint64_t> compact_masks;
-	thrust::device_vector<uint64_t> child_sort_key;
-	thrust::device_vector<uint64_t> parent_sort_key;
-	thrust::device_vector<uint32_t> unique_pos;
-	thrust::device_vector<uint32_t> first_child_pos;
-	thrust::device_vector<uint32_t> child_dag_idx;
-	thrust::device_vector<uint32_t> compact_dag;
-	thrust::device_vector<uint32_t> parent_paths;
-	thrust::device_vector<uint32_t> parent_node_size;
-	thrust::device_vector<uint32_t> parent_svo_idx;
-	thrust::device_vector<uint32_t> sorted_orig_pos;
-	thrust::device_vector<uint32_t> sorted_parent_node_size;
-	thrust::device_vector<uint32_t> sorted_parent_svo_idx;
-	thrust::device_vector<uint32_t> unique_size;
-	thrust::device_vector<uint32_t> parent_dag_idx;
-	thrust::device_vector<uint32_t> parent_svo_nodes;
-
-	thrust::device_vector<uint32_t> path;
-	thrust::device_vector<uint32_t> base_color;
-
-	int m_parent_svo_size;
-	std::size_t m_child_svo_size;
-
-	void map_resources(size_t child_svo_size);
-	thrust::device_vector<uint32_t> initDag(int *child_level_start_offset, int *parent_level_start_offset);
-
-	std::pair<
-		std::vector<thrust::device_vector<uint32_t>>,
-		std::vector<thrust::device_vector<uint64_t>>
-	> buildDAG(
-		int bottomLevel,
-		int *parent_level_start_offset,
-		int *child_level_start_offset);
-
-	void build_parent_level(int lvl, int bottomLevel);
-	thrust::device_vector<uint32_t> create_dag_nodes(int size);
-
-	std::size_t sort_and_merge_fragments(std::size_t count);
-	dag::DAG build_dag(int count, int depth, const chag::Aabb &aabb);
-};
-
-__device__ uint32_t childBits(const uint32_t &val) { return uint32_t(val & 0x7); }
+__device__ uint32_t childBits(const uint64_t &val) { return uint32_t(val & 0x7); }
 
 __global__ void build_parent_level_kernel(
 	uint32_t *d_parent_svo_nodes,
 	uint32_t *d_parent_svo_idx,
-	uint32_t *d_child_paths, 
+	uint64_t *d_child_paths, 
 	uint32_t *d_first_child_pos,
 	uint32_t *d_child_dag_idx,
 	uint64_t *d_child_sort_key,
@@ -123,7 +145,7 @@ __global__ void build_parent_level_kernel(
 
 		d_parent_svo_nodes[d_parent_svo_idx[thread]] = 0;
 		for (uint32_t i = 0; i < nof_children; i++) {
-			uint32_t childpath = d_child_paths[d_first_child_pos[thread] + i];
+			uint64_t childpath = d_child_paths[d_first_child_pos[thread] + i];
 			uint32_t child_idx = childBits(childpath);
 			d_parent_svo_nodes[d_parent_svo_idx[thread]] |= (1 << child_idx);
 			if (lvl != bottomLevel) {
@@ -174,9 +196,11 @@ __global__ void create_dag_nodes_kernel(
 	}
 }
 
-void DAGConstructor::impl::build_parent_level(int lvl, int bottomLevel) {
+void DAGConstructor_impl::build_parent_level(int lvl, int bottomLevel) {
+	ZoneScoped;
 	dim3 blockDim = dim3(256);
 	dim3 gridDim = dim3((m_parent_svo_size +  blockDim.x - 1)/ blockDim.x);
+	assert(m_child_svo_size < std::numeric_limits<int>::max());
 	build_parent_level_kernel<<<gridDim, blockDim>>>(
 		parent_svo_nodes.data().get(),
 		parent_svo_idx.data().get(),
@@ -186,14 +210,16 @@ void DAGConstructor::impl::build_parent_level(int lvl, int bottomLevel) {
 		child_sort_key.data().get(),
 		parent_sort_key.data().get(),
 		m_parent_svo_size,
-		m_child_svo_size,
+		int(m_child_svo_size),
 		lvl,
 		bottomLevel
 		);
 }
 
 
-thrust::device_vector<uint32_t> DAGConstructor::impl::create_dag_nodes(int size) {
+thrust::device_vector<uint32_t> DAGConstructor_impl::create_dag_nodes(int size) {
+	ZoneScoped;
+	
 	thrust::device_vector<uint32_t> result(size);
 	dim3 blockDim = dim3(256);
 	dim3 gridDim = dim3((m_parent_svo_size +  blockDim.x - 1)/ blockDim.x);
@@ -212,7 +238,9 @@ thrust::device_vector<uint32_t> DAGConstructor::impl::create_dag_nodes(int size)
 	return result;
 }
 
-void DAGConstructor::impl::map_resources(size_t child_svo_size) {
+void DAGConstructor_impl::map_resources(size_t child_svo_size) {
+	ZoneScoped;
+	
 	m_child_svo_size = child_svo_size;
 	size_t free, total;
 	cudaMemGetInfo(&free, &total);
@@ -236,24 +264,30 @@ void DAGConstructor::impl::map_resources(size_t child_svo_size) {
 	cudaMemGetInfo(&free, &total);
 }
 
-thrust::device_vector<uint32_t> DAGConstructor::impl::initDag(int *child_level_start_offset, int *parent_level_start_offset) {
+thrust::device_vector<uint32_t> DAGConstructor_impl::initDag(int *child_level_start_offset, int *parent_level_start_offset) {
 	thrust::device_vector<uint32_t> result;
 	constexpr std::size_t child_start_offset = 9;
+
+	ZoneScoped;
+	
 	// Used for later
-	thrust::copy_n(
+	thrust2::copy_n(
+		SIZE(m_child_svo_size)
 		compact_masks.cbegin(),
 		m_child_svo_size,
 		child_sort_key.begin()
 	);
 
 	// Index to masks
-	thrust::sequence(
+	thrust2::sequence(
+		SIZE(m_child_svo_size)
 		unique_pos.begin(),
 		unique_pos.begin() + m_child_svo_size
 	);
 
 	// Sort masks AND index
-	thrust::sort_by_key(
+	thrust2::sort_by_key(
+		SIZE(m_child_svo_size)
 		compact_masks.begin(),
 		compact_masks.begin() + m_child_svo_size,
 		unique_pos.begin()
@@ -261,7 +295,8 @@ thrust::device_vector<uint32_t> DAGConstructor::impl::initDag(int *child_level_s
 
 	// Mark unique masks as 2, 
 	// since the 64-bit mask will be represented as 2x32-bit words in the DAG.
-	thrust::adjacent_difference(
+	thrust2::adjacent_difference(
+		SIZE(m_child_svo_size)
 		compact_masks.cbegin(),
 		compact_masks.cbegin() + m_child_svo_size,
 		first_child_pos.begin(),
@@ -269,10 +304,14 @@ thrust::device_vector<uint32_t> DAGConstructor::impl::initDag(int *child_level_s
 	);
 
 	// Set first to zero for inclusive scan (prefix sum)
-	first_child_pos[0] = 0;
-
+	{
+		ZoneScopedN("write first element");
+		first_child_pos[0] = 0;
+	}
+		
 	// child_dag_idx[unique_pos[i]] = sum_at[i]
-	thrust::inclusive_scan(
+	thrust2::inclusive_scan(
+		SIZE(m_child_svo_size)
 		first_child_pos.cbegin(),
 		first_child_pos.cbegin() + m_child_svo_size,
 		thrust::make_permutation_iterator(
@@ -281,18 +320,23 @@ thrust::device_vector<uint32_t> DAGConstructor::impl::initDag(int *child_level_s
 	);
 
 	// Reduce to unique masks
-	const std::size_t num_unique = thrust::distance(
+	const std::size_t num_unique = thrust2::distance(
+		SIZE(m_child_svo_size)
 		compact_masks.begin(),
-		thrust::unique(
+		thrust2::unique(
+			SIZE(m_child_svo_size)
 			compact_masks.begin(),
 			compact_masks.begin() + m_child_svo_size
 		)
 	);
 
 	// Quick and dirty memcpy as I do not know the thrust way of doing this..
-	result.resize(2 * num_unique);
+	{
+		ZoneScopedN("resize");
+		result.resize(2 * num_unique);
+	}
 	std::size_t count = result.size() * sizeof(uint32_t);
-	 cudaMemcpy(
+	cudaMemcpy2(
 		result.data().get(),
 		compact_masks.data().get(),
 		count,
@@ -302,7 +346,8 @@ thrust::device_vector<uint32_t> DAGConstructor::impl::initDag(int *child_level_s
 	// Not used in first pass
 	*child_level_start_offset  = child_start_offset;
 	// Make room for a copied root node
-	*parent_level_start_offset = child_start_offset + 2 * num_unique;
+	assert(child_start_offset + 2 * num_unique < std::numeric_limits<int>::max());
+	*parent_level_start_offset = int(child_start_offset + 2 * num_unique);
 	return result;
 }
 
@@ -316,24 +361,41 @@ struct equal_to {
 	}
 };
 
-using Iter = thrust::device_vector<uint32_t>::iterator;
-auto InBegin(Iter path){
+template<typename T>
+struct RShift3 : public thrust::unary_function<T, T>
+{
+	__host__ __device__
+	T operator()(T x) const
+	{
+		return x >> 3;
+	}
+};
+
+template<typename T>
+using Iter = thrust::device_vector<T>::iterator;
+	
+template<typename T>
+auto InBegin(Iter<T> path){
 	return thrust::make_zip_iterator(
 		thrust::make_tuple(
-			thrust::make_counting_iterator(0ull),
-			thrust::make_transform_iterator(path, thrust::placeholders::_1 >> 3)
+			thrust::make_counting_iterator(std::size_t(0ull)),
+			//thrust::make_transform_iterator(path, thrust::placeholders::_1 >> 3)
+			thrust::make_transform_iterator(path, RShift3<T>())
 		)
 	);
 }
-auto InEnd(Iter path, std::size_t count) {
+template<typename T>
+auto InEnd(Iter<T> path, std::size_t count) {
 	return thrust::make_zip_iterator(
 		thrust::make_tuple(
 			thrust::make_counting_iterator(count),
-			thrust::make_transform_iterator(path + count, thrust::placeholders::_1 >> 3)
+			//thrust::make_transform_iterator(path + count, thrust::placeholders::_1 >> 3)
+			thrust::make_transform_iterator(path + count, RShift3<T>())
 		)
 	);
 }
-auto OutBegin(Iter first_child_pos_, Iter parent_paths_){
+template<typename T1, typename T2>
+auto OutBegin(Iter<T1> first_child_pos_, Iter<T2> parent_paths_){
 	return thrust::make_zip_iterator(
 		thrust::make_tuple(first_child_pos_, parent_paths_)
 	);
@@ -357,60 +419,77 @@ std::pair<
 	std::vector<thrust::device_vector<uint32_t>>,
 	std::vector<thrust::device_vector<uint64_t>>
 >
-DAGConstructor::impl::buildDAG(
+DAGConstructor_impl::buildDAG(
 	int bottomLevel,
-	int *parent_level_start_offset,
-	int *child_level_start_offset
+	int* parent_level_start_offset,
+	int* child_level_start_offset
 )
 {
-	std::pair<
-		std::vector<thrust::device_vector<uint32_t>>,
-		std::vector<thrust::device_vector<uint64_t>>
-	> result;
+	ZoneScoped;
 
-	auto &dag_lvls = result.first;
-	auto &hash_lvls = result.second;
-
-	dag_lvls.emplace_back(initDag(child_level_start_offset, parent_level_start_offset));
-	hash_lvls.emplace_back(dag_lvls[0].size()/2);
-	cudaMemcpy(
+	DAGHashResult dag_hash_result;
+	auto& dag_lvls  = dag_hash_result.first;
+	auto& hash_lvls = dag_hash_result.second;
+	
+	{
+		ZoneScopedN("emplace back");
+		dag_lvls.emplace_back(initDag(child_level_start_offset, parent_level_start_offset));
+	}
+	{
+		ZoneScopedN("emplace back");
+		hash_lvls.emplace_back(dag_lvls[0].size() / 2);
+	}
+	cudaMemcpy2(
 		hash_lvls.back().data().get(),
 		dag_lvls[0].data().get(),
-		dag_lvls[0].size()*sizeof(uint32_t),
+		dag_lvls[0].size() * sizeof(uint32_t),
 		cudaMemcpyDeviceToDevice
 	);
 
 	for (int lvl = bottomLevel - 1; lvl >= 0; lvl--) {
+		ZoneScoped;
+		std::stringstream ss;
+		ss << "level " << lvl;
+		const auto str = ss.str();
+		ZoneName(str.c_str(), str.size());
 		int final_level_size;
 		{
 			// Copy unique parent paths and their children indexes
 			{
-				auto out_iterator = IdentifyParents::OutBegin(first_child_pos.begin(), parent_paths.begin());
-				m_parent_svo_size = thrust::distance(
-					out_iterator, 
-					thrust::unique_copy(
-						IdentifyParents::InBegin(path.begin()), 
-						IdentifyParents::InEnd(path.begin(), m_child_svo_size),
+				auto out_iterator = IdentifyParents::OutBegin<uint32_t, uint64_t>(first_child_pos.begin(), parent_paths.begin());
+				auto result = thrust2::distance(
+					SIZE(m_child_svo_size)
+					out_iterator,
+					thrust2::unique_copy(
+						SIZE(m_child_svo_size)
+						IdentifyParents::InBegin<uint64_t>(path.begin()),
+						IdentifyParents::InEnd<uint64_t>(path.begin(), m_child_svo_size),
 						out_iterator,
 						IdentifyParents::equal_to()
 					)
 				);
+				assert(result < std::numeric_limits<int>::max());
+				m_parent_svo_size = static_cast<int>(result);
 			}
 
 			// (1)
 			// Figure out how large each node is (mask + children, i.e. 1+N where N is the number of children)
 			{
 				using namespace thrust::placeholders;
-				auto first_child_pos_back   = first_child_pos.begin()  + m_parent_svo_size-1;
-				auto first_child_pos_end    = first_child_pos.begin()  + m_parent_svo_size;
-				auto first_child_pos_second = first_child_pos.begin()  + 1;
-				auto parent_node_size_back  = parent_node_size.begin() + m_parent_svo_size-1;
-				thrust::transform(first_child_pos_second, first_child_pos_end, first_child_pos.begin(), parent_node_size.begin(), _1 - _2 + 1);
-				*parent_node_size_back = m_child_svo_size - (*first_child_pos_back) + 1;
+				auto first_child_pos_back = first_child_pos.begin() + m_parent_svo_size - 1;
+				auto first_child_pos_end = first_child_pos.begin() + m_parent_svo_size;
+				auto first_child_pos_second = first_child_pos.begin() + 1;
+				auto parent_node_size_back = parent_node_size.begin() + m_parent_svo_size - 1;
+				thrust2::transform(SIZE(m_parent_svo_size) first_child_pos_second, first_child_pos_end, first_child_pos.begin(), parent_node_size.begin(), _1 - _2 + 1);
+				ZoneScopedN("read");
+				assert(m_child_svo_size - (*first_child_pos_back) + 1 < std::numeric_limits<uint32_t>::max());
+				*parent_node_size_back = uint32_t(m_child_svo_size - (*first_child_pos_back) + 1);
 			}
 			// (2)
 			// Figure out index offset of these nodes
-			thrust::exclusive_scan(parent_node_size.begin(), parent_node_size.begin() + m_parent_svo_size, parent_svo_idx.begin());
+			{
+				thrust2::exclusive_scan(SIZE(m_parent_svo_size) parent_node_size.begin(), parent_node_size.begin() + m_parent_svo_size, parent_svo_idx.begin());
+			}
 			// FIXME: (1) & (2) could be replaced by
 			//        parent_node_size[i] = first_child_pos[i] + i
 
@@ -418,63 +497,97 @@ DAGConstructor::impl::buildDAG(
 
 			// Need to copy m_parent_sort_key to m_child_sort_key now, as m_parent_sort_key will become sorted.
 			// We don't want in m_child_sort_key to be sorted..
-			thrust::copy_n(parent_sort_key.begin(), m_parent_svo_size, child_sort_key.begin());
+			{
+				thrust2::copy_n(SIZE(m_parent_svo_size) parent_sort_key.begin(), m_parent_svo_size, child_sort_key.begin());
+			}
 
 			// Create mapping according to parent sort key
-			thrust::sequence(sorted_orig_pos.begin(), sorted_orig_pos.begin() + m_parent_svo_size);
-			thrust::sort_by_key(
-				parent_sort_key.begin(),
-				parent_sort_key.begin() + m_parent_svo_size,
-				thrust::make_zip_iterator(
-					thrust::make_tuple(
-						sorted_orig_pos.begin(),
-						parent_node_size.begin(),
-						parent_svo_idx.begin()
+			{
+				thrust2::sequence(SIZE(m_parent_svo_size) sorted_orig_pos.begin(), sorted_orig_pos.begin() + m_parent_svo_size);
+			}
+			{
+				thrust2::sort_by_key(
+					SIZE(m_parent_svo_size)
+					parent_sort_key.begin(),
+					parent_sort_key.begin() + m_parent_svo_size,
+					thrust::make_zip_iterator(
+						thrust::make_tuple(
+							sorted_orig_pos.begin(),
+							parent_node_size.begin(),
+							parent_svo_idx.begin()
+						)
 					)
-				)
-			);
+				);
+			}
 
 			// FIXME: Could this entire copy & resize be optimized?
-			hash_lvls.emplace_back(m_parent_svo_size);
-			thrust::copy_n(
-				parent_sort_key.begin(),
-				m_parent_svo_size,
-				hash_lvls.back().begin()
-			);
-			hash_lvls.back().resize(
-				thrust::distance(hash_lvls.back().begin(),
-					thrust::unique(hash_lvls.back().begin(),
-						hash_lvls.back().end()
+			{
+				ZoneScopedN("emplace_back");
+				hash_lvls.emplace_back(m_parent_svo_size);
+			}
+			{
+				thrust2::copy_n(
+					SIZE(m_parent_svo_size)
+					parent_sort_key.begin(),
+					m_parent_svo_size,
+					hash_lvls.back().begin()
+				);
+			}
+			{
+				ZoneScopedN("resize");
+				hash_lvls.back().resize(
+					thrust2::distance(
+						SIZE(hash_lvls.back().end() - hash_lvls.back().begin())
+						hash_lvls.back().begin(),
+						thrust2::unique(
+							SIZE(hash_lvls.back().end() - hash_lvls.back().begin())
+							hash_lvls.back().begin(),
+							hash_lvls.back().end()
+						)
 					)
-				)
-			);
+				);
+			}
 
 			// Compares parent_sort_key[i+1] to parent_sort_key[i]
 			// If equal, write 0 to unique_size, else
 			// write sorted_parent_node_size[i].
 			// TODO: I could rewrite this function to be more clear.
 			//       i.e., the zip iterator etc.
-			thrust::transform(
-				parent_sort_key.begin() + 1,
-				parent_sort_key.begin() + m_parent_svo_size,
-				thrust::make_zip_iterator(
-					thrust::make_tuple(
-						parent_sort_key.begin(),
-						parent_node_size.begin()
-					)
-				),
-				unique_size.begin() + 1,
-				FirstUnique::functor()
-			);
+			{
+				thrust2::transform(
+					SIZE(m_parent_svo_size)
+					parent_sort_key.begin() + 1,
+					parent_sort_key.begin() + m_parent_svo_size,
+					thrust::make_zip_iterator(
+						thrust::make_tuple(
+							parent_sort_key.begin(),
+							parent_node_size.begin()
+						)
+					),
+					unique_size.begin() + 1,
+					FirstUnique::functor()
+				);
+			}
 
-			unique_size[0] = 0;
+			{
+				ZoneScopedN("write first element");
+				unique_size[0] = 0;
+			}
 
 			// Sum up sizes to figure out offsets
-			thrust::inclusive_scan(unique_size.begin(), unique_size.begin() + m_parent_svo_size, unique_pos.begin());
+			{
+				thrust2::inclusive_scan(SIZE(m_parent_svo_size) unique_size.begin(), unique_size.begin() + m_parent_svo_size, unique_pos.begin());
+			}
 
-			final_level_size = unique_pos[m_parent_svo_size-1] + parent_node_size[m_parent_svo_size-1];
+			{
+				ZoneScopedN("read");
+				final_level_size = unique_pos[m_parent_svo_size - 1] + parent_node_size[m_parent_svo_size - 1];
+			}
 
-			dag_lvls.emplace_back(create_dag_nodes(final_level_size));
+			{
+				ZoneScopedN("emplace_back");
+				dag_lvls.emplace_back(create_dag_nodes(final_level_size));
+			}
 
 			thrust::swap(parent_dag_idx, child_dag_idx);
 			thrust::swap(parent_paths, path);
@@ -483,15 +596,18 @@ DAGConstructor::impl::buildDAG(
 		///////////////////////////////////////////////////////////////////
 		// New level
 		///////////////////////////////////////////////////////////////////
-		m_child_svo_size          = m_parent_svo_size;
+		m_child_svo_size = m_parent_svo_size;
 		*child_level_start_offset = *parent_level_start_offset;
 		*parent_level_start_offset += final_level_size;
 	}
 
 	// DAG is built bottom up. Reverse to have coarser levels "on top"
-	std::reverse(begin(dag_lvls), end(dag_lvls));
-	std::reverse(begin(hash_lvls), end(hash_lvls));
-	return result;
+	{
+		ZoneScopedN("reverse");
+		std::reverse(begin(dag_lvls), end(dag_lvls));
+		std::reverse(begin(hash_lvls), end(hash_lvls));
+	}
+	return dag_hash_result;
 }
 
 __device__ inline float4 &operator+=(float4 &a, const float4 &b) {
@@ -544,65 +660,118 @@ struct ToUint32 : public thrust::unary_function<float4, uint32_t>
 };
 
 
-std::size_t DAGConstructor::impl::sort_and_merge_fragments(std::size_t count) {
-	// These could be cached as well, to reduce reallocations.
-	thrust::device_vector<uint32_t> th_sorted_index(count, 0);
-	thrust::device_vector<uint32_t> th_unique(count,0);
-	thrust::device_vector<uint32_t> th_pre_inc_sum(count,0);
-	thrust::device_vector<uint64_t> th_sorted_masks(count,0);
+std::size_t DAGConstructor_impl::sort_and_merge_fragments(std::size_t count) {
+	ZoneScoped;
+
+	std::stringstream ss;
+	ss << "count: " << count;
+	const auto sstr = ss.str();
+	ZoneText(sstr.c_str(), sstr.size());
+
+	struct Cache
+	{
+		thrust::device_vector<uint32_t> th_sorted_index;
+		thrust::device_vector<uint32_t> th_unique;
+		thrust::device_vector<uint32_t> th_pre_inc_sum;
+		thrust::device_vector<uint64_t> th_sorted_masks;
+	};
+	thread_local Cache cache;
+	
+	auto& th_sorted_index = cache.th_sorted_index;
+	auto& th_unique = cache.th_unique;
+	auto& th_pre_inc_sum = cache.th_pre_inc_sum;
+	auto& th_sorted_masks = cache.th_sorted_masks;
+
+	{
+		ZoneScopedN("alloc");
+		// These could be cached as well, to reduce reallocations.
+		th_sorted_index.resize(count, 0);
+		th_unique.resize(count, 0);
+		th_pre_inc_sum.resize(count, 0);
+		th_sorted_masks.resize(count, 0);
+	}
 
 	// IOTA.
-	thrust::sequence(
-		th_sorted_index.begin(),
-		th_sorted_index.end()
-	);
+	{
+		thrust2::sequence(
+			SIZE(th_sorted_index.end() - th_sorted_index.begin())
+			th_sorted_index.begin(),
+			th_sorted_index.end()
+		);
+	}
 
 	// Sorts value AND key.
-	thrust::sort_by_key(
-		path.begin(),
-		path.begin() + count,
-		th_sorted_index.begin()
-	);
+	{
+		thrust2::sort_by_key(
+			SIZE(count)
+			path.begin(),
+			path.begin() + count,
+			th_sorted_index.begin()
+		);
+	}
 
 	// NOTE: This and color sorting should be possible to 
 	//       do under different streams. However, this is
 	//       not really a bottleneck, so meh.
 	// Figure out set bit in 64-bit leaf
-	thrust::transform(
-		path.begin(),
-		path.begin() + count,
-		th_sorted_masks.begin(),
-		1ull << (thrust::placeholders::_1 & 0x3F)
-	);
+	{
+		thrust2::transform(
+			SIZE(count)
+			path.begin(),
+			path.begin() + count,
+			th_sorted_masks.begin(),
+			1ull << (thrust::placeholders::_1 & 0x3F)
+		);
+	}
 
 	// Mark unique paths with 1
-	thrust::adjacent_difference(
-		path.begin(),
-		path.begin() + count,
-		th_unique.begin(),
-		thrust::not_equal_to<uint32_t>()
-	);
+	{
+		thrust2::adjacent_difference(
+			SIZE(count)
+			path.begin(),
+			path.begin() + count,
+			th_unique.begin(),
+			thrust::not_equal_to<uint32_t>()
+		);
+	}
 
 	// First element need to be zero for inclusive scan (prefix sum)
-	th_unique[0] = 0;
+	{
+		ZoneScopedN("write first element");
+		th_unique[0] = 0;
+	}
 
 	// Creates a mapping to compact elements
-	std::size_t unique_frag =
-		1 + *(thrust::inclusive_scan(th_unique.cbegin(), th_unique.cend(), th_pre_inc_sum.begin()) - 1);
+	m_num_colors = 1ull +
+		*(thrust2::inclusive_scan(
+			SIZE(th_unique.cend() - th_unique.cbegin())
+			th_unique.cbegin(),
+			th_unique.cend(),
+			th_pre_inc_sum.begin()) - 1);
 
-	m_num_colors = unique_frag;
+	const auto compaction = [&](thrust::device_vector<uint32_t>& vec_in, const bool ignore_black) {
+		struct CompactCache
+		{
+			thrust::device_vector<float4> th_sorted_data;
+			thrust::device_vector<float4> th_compact_data;
+		};
+		thread_local CompactCache compact_cache;
+		auto& th_sorted_data = compact_cache.th_sorted_data;
+		auto& th_compact_data = compact_cache.th_compact_data;
 
-	const auto compaction = [&](thrust::device_vector<uint32_t> &vec_in, const bool ignore_black){
-		// This could be cached as well, to reduce reallocations.
-		thrust::device_vector<float4> th_sorted_data(count);
-		thrust::device_vector<float4> th_compact_data(m_num_colors);
+		{
+			ZoneScopedN("alloc");
+			th_sorted_data.resize(count);
+			th_compact_data.resize(m_num_colors);
+		}
 
 		// Sort data from uint32_t to float4.
 		// If we want to ignore completely black values in the averaging,
 		// ToFloat4 will set the w component to 0, instead of 1.
 		if(ignore_black)
 		{
-			thrust::gather(
+			thrust2::gather(
+				SIZE(th_sorted_index.cend() - th_sorted_index.cbegin())
 				th_sorted_index.cbegin(),
 				th_sorted_index.cend(),
 				thrust::make_transform_iterator(vec_in.begin(), ToFloat4<true>()),
@@ -610,7 +779,8 @@ std::size_t DAGConstructor::impl::sort_and_merge_fragments(std::size_t count) {
 			);
 		} else
 		{
-			thrust::gather(
+			thrust2::gather(
+				SIZE(th_sorted_index.cend() - th_sorted_index.cbegin())
 				th_sorted_index.cbegin(),
 				th_sorted_index.cend(),
 				thrust::make_transform_iterator(vec_in.begin(), ToFloat4<false>()),
@@ -621,7 +791,8 @@ std::size_t DAGConstructor::impl::sort_and_merge_fragments(std::size_t count) {
 		// TODO: These can be done in paralell by later transforms..
 		// Reduce identical colors by sum.
 		auto compact_out_end = 
-			thrust::reduce_by_key(
+			thrust2::reduce_by_key(
+				SIZE(th_pre_inc_sum.cend() - th_pre_inc_sum.cbegin())
 				th_pre_inc_sum.cbegin(),
 				th_pre_inc_sum.cend(),
 				th_sorted_data.begin(),
@@ -630,7 +801,8 @@ std::size_t DAGConstructor::impl::sort_and_merge_fragments(std::size_t count) {
 			).second;
 
 		// And average the sum (N is in color.w)
-		thrust::transform(
+		thrust2::transform(
+			SIZE(compact_out_end - th_compact_data.cbegin())
 			th_compact_data.begin(),
 			compact_out_end,
 			th_compact_data.begin(),
@@ -638,19 +810,27 @@ std::size_t DAGConstructor::impl::sort_and_merge_fragments(std::size_t count) {
 		);
 
 		// Pack back to vector
-		thrust::transform(
+		thrust2::transform(
+			SIZE(compact_out_end - th_compact_data.cbegin())
 			th_compact_data.begin(),
 			compact_out_end,
 			vec_in.begin(),
 			ToUint32()
 		);
+
+		{
+			ZoneScopedN("dealloc");
+			th_sorted_data.clear();
+			th_compact_data.clear();
+		}
 	};
 
-	compaction(base_color, false);
+	//compaction(base_color, false);
 
 	// Truncate positions and collect unique
 	// Calculate parent paths
-	thrust::transform(
+	thrust2::transform(
+		SIZE(count)
 		path.begin(),
 		path.begin() + count,
 		path.begin(),
@@ -658,7 +838,8 @@ std::size_t DAGConstructor::impl::sort_and_merge_fragments(std::size_t count) {
 	);
 
 	// Mark unique parents with 1
-	thrust::adjacent_difference(
+	thrust2::adjacent_difference(
+		SIZE(count)
 		path.begin(),
 		path.begin() + count,
 		th_unique.begin(),
@@ -666,23 +847,29 @@ std::size_t DAGConstructor::impl::sort_and_merge_fragments(std::size_t count) {
 	);
 
 	// First element need to be zero for inclusive scan (prefix sum)
-	th_unique[0] = 0;
+	{
+		ZoneScopedN("write first element");
+		th_unique[0] = 0;
+	}
 
 	{
 		// scopedStream s1, s2;
 		// TODO: Read up on streams
 		// Creates a mapping to compact elements
-		thrust::inclusive_scan(
+		thrust2::inclusive_scan(
+			SIZE(th_unique.cend() - th_unique.cbegin())
 			th_unique.cbegin(),
 			th_unique.cend(),
 			th_pre_inc_sum.begin()
 		);
 
 		// Reduce identical parents
-		m_child_svo_size = 
-			thrust::distance(
+		m_child_svo_size =
+			thrust2::distance(
+				SIZE(count)
 				path.begin(),
-				thrust::unique(
+				thrust2::unique(
+					SIZE(count)
 					path.begin(),
 					path.begin() + count)
 			);
@@ -690,11 +877,13 @@ std::size_t DAGConstructor::impl::sort_and_merge_fragments(std::size_t count) {
 
 	// FIXME: Guess we need to move these allocations elsewhere..
 	if (compact_masks.size() < m_child_svo_size) {
+		ZoneScopedN("resize");
 		compact_masks.resize(m_child_svo_size);
 	}
 
 	// Reduce them according to parents by bitwise or
-	thrust::reduce_by_key(
+	thrust2::reduce_by_key(
+		SIZE(th_pre_inc_sum.cend() - th_pre_inc_sum.cbegin())
 		th_pre_inc_sum.cbegin(),
 		th_pre_inc_sum.cend(),
 		th_sorted_masks.cbegin(),
@@ -703,13 +892,24 @@ std::size_t DAGConstructor::impl::sort_and_merge_fragments(std::size_t count) {
 		thrust::equal_to<uint32_t>(),
 		thrust::bit_or<uint64_t>()
 	);
+
+	{
+		ZoneScopedN("dealloc");
+		th_sorted_index.clear();
+		th_unique.clear();
+		th_pre_inc_sum.clear();
+		th_sorted_masks.clear();
+	}
+
 	return m_child_svo_size;
 }
 
-dag::DAG DAGConstructor::impl::build_dag(int count, int depth, const chag::Aabb &aabb) {
-	dag::DAG result;
-	result.m_levels = depth;
-	result.m_aabb   = aabb;
+dag::DAG DAGConstructor_impl::build_dag(int count, int depth, const chag::Aabb &aabb) {
+	ZoneScoped;
+	
+	dag::DAG dag_result;
+	dag_result.m_levels = depth;
+	dag_result.m_aabb   = aabb;
 	// TODO: Return n_paths **and** n_colors to avoid relying on internal state.
 	size_t n_paths  = sort_and_merge_fragments(count);
 
@@ -719,31 +919,37 @@ dag::DAG DAGConstructor::impl::build_dag(int count, int depth, const chag::Aabb 
 	map_resources(n_paths);
 	int child_level_start_offset;
 	int parent_level_start_offset;
-	auto out = buildDAG(result.m_levels, &parent_level_start_offset,&child_level_start_offset);
+	auto out = buildDAG(dag_result.m_levels, &parent_level_start_offset,&child_level_start_offset);
 	auto &the_dag = out.first;
 	auto &the_hash = out.second;
 	{
 		// Copy DAG.
-		result.m_data.reserve(the_dag.size());
-		for (int i{0}; i<the_dag.size(); ++i) {
+		{
+			ZoneScopedN("reserve");
+			dag_result.m_data.reserve(the_dag.size());
+		}
+		for (int i{ 0 }; i < the_dag.size(); ++i) {
 			const std::size_t nelem = the_dag[i].size();
 			const std::size_t count = nelem * sizeof(uint32_t);
-			result.m_data.emplace_back(std::vector<uint32_t>(nelem));
-			cudaMemcpy(
-				result.m_data[i].data(),
+			dag_result.m_data.emplace_back(std::vector<uint32_t>(nelem));
+			cudaMemcpy2(
+				dag_result.m_data[i].data(),
 				the_dag[i].data().get(),
 				count,
 				cudaMemcpyDeviceToHost
 			);
 		}
 		// Copy hash
-		result.m_hashes.reserve(the_hash.size());
-		for (int i{0}; i < the_hash.size(); ++i) {
+		{
+			ZoneScopedN("reserve");
+			dag_result.m_hashes.reserve(the_hash.size());
+		}
+		for (int i{ 0 }; i < the_hash.size(); ++i) {
 			const std::size_t nelem = the_hash[i].size();
 			const std::size_t count = nelem * sizeof(uint64_t);
-			result.m_hashes.emplace_back(std::vector<uint64_t>(nelem));
-			cudaMemcpy(
-				result.m_hashes[i].data(),
+			dag_result.m_hashes.emplace_back(std::vector<uint64_t>(nelem));
+			cudaMemcpy2(
+				dag_result.m_hashes[i].data(),
 				the_hash[i].data().get(),
 				count,
 				cudaMemcpyDeviceToHost
@@ -751,74 +957,30 @@ dag::DAG DAGConstructor::impl::build_dag(int count, int depth, const chag::Aabb 
 		}
 
 		// Copy data.
-		auto copy_to_host = [&](std::vector<uint32_t> &host_vec, const thrust::device_vector<uint32_t> &th_vec) {
-			host_vec.resize(m_num_colors);
-			cudaMemcpy(
+		auto copy_to_host = [&](std::vector<uint32_t>& host_vec, const thrust::device_vector<uint32_t>& th_vec) {
+			{
+				ZoneScopedN("resize");
+				host_vec.resize(m_num_colors);
+			}
+			cudaMemcpy2(
 				host_vec.data(),
 				th_vec.data().get(),
 				host_vec.size() * sizeof(uint32_t),
 				cudaMemcpyDeviceToHost
 			);
 		};
-		copy_to_host(result.m_base_colors, base_color);
+		//copy_to_host(dag_result.m_base_colors, base_color);
 
-
-		count_child_nodes(0, result.m_levels, 0, &result.m_data);
-		result.m_data.shrink_to_fit();
-		result.m_base_colors.shrink_to_fit();
+		if (false)
+		{
+			ZoneScopedN("count_child_nodes");
+			count_child_nodes(0, dag_result.m_levels, 0, &dag_result.m_data);
+		}
+		{
+			ZoneScopedN("shrink_to_fit");
+			dag_result.m_data.shrink_to_fit();
+			//dag_result.m_base_colors.shrink_to_fit();
+		}
 	}
-	return result;
+	return dag_result;
 }
-
-
-template<typename Dev_t, typename Host_t>
-void copy_to_device(thrust::device_vector<Dev_t> &dev, const std::vector<Host_t> &host, const std::size_t size){
-	dev.resize(size);
-	cudaMemcpy(
-		dev.data().get(),
-		host.data(),
-		size * sizeof(Dev_t),
-		cudaMemcpyHostToDevice
-	);
-}
-
-template<typename Dev_t>
-void copy_to_device(thrust::device_vector<Dev_t> &dev, Dev_t *dev_ptr, const std::size_t size){
-	dev.resize(size);
-	thrust::copy_n(
-		thrust::device_ptr<Dev_t>{dev_ptr},
-		size,
-		dev.begin()
-	);
-}
-
-// Base wrapper.
-dag::DAG DAGConstructor::build_dag(
-	const std::vector<uint32_t> &morton_paths,
-	const std::vector<uint32_t> &base_color,
-	int count,
-	int depth,
-	const chag::Aabb &aabb
-)
-{
-	copy_to_device(p_impl_->path,       morton_paths, count);
-	copy_to_device(p_impl_->base_color, base_color,   count);
-	
-	return p_impl_->build_dag(count, depth, aabb);
-}
-
-dag::DAG DAGConstructor::build_dag(
-	uint32_t *d_pos,
-	uint32_t *d_base_color,
-	int count,
-	int depth,
-	const chag::Aabb &aabb
-)
-{
-	copy_to_device(p_impl_->path,       d_pos,        count);
-	copy_to_device(p_impl_->base_color, d_base_color, count);
-
-	return p_impl_->build_dag(count, depth, aabb);
-}
-DAGConstructor::DAGConstructor() : p_impl_{std::make_unique<impl>()} {}
-DAGConstructor::~DAGConstructor() {}

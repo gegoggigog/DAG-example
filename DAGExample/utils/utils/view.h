@@ -15,7 +15,7 @@ class view : public orientation {
 	float m_fov          = 60.0;
 	float m_aspect_ratio = 1.0;
 	float m_near         = 1.0;
-	float m_far          = 500.0;
+	float m_far          = 10000.0;
 
 	virtual void set_as_projection();
 	void push();
