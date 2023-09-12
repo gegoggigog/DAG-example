@@ -1,5 +1,5 @@
 #include "DAGConstructor.h"
-#include "DAGConstructor.cuh"
+#include "DAGConstructor_impl.h"
 #include <iostream>
 #include <tuple>
 #include <vector>

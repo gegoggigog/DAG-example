@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.14)
 project(DAG_Compression LANGUAGES CUDA CXX)
 
+set(CHAG_CUDA_ARCH
+        #  61-real # 1080
+        # 75-real # 2060
+        86-real # 3090
+)
+
 include(cmake/CPM.cmake)
 
 CPMAddPackage(
@@ -65,15 +71,11 @@ target_include_directories(glm SYSTEM INTERFACE ${glm_SOURCE_DIR})
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable -Wno-unused-parameter")
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-parentheses -Wall -Wextra -Wconversion")
 
-# find_package(glm REQUIRED)
-# find_package(SDL2 REQUIRED)
-find_package(OpenGL REQUIRED)
-find_package(CUDAToolkit REQUIRED)
-find_package(Thrust REQUIRED CONFIG)
-thrust_create_target(Thrust)
 
-include_directories(${SDL2_INCLUDE_DIRS})
-include_directories(${CUDA_INCLUDE_DIRS})
+find_package(OpenGL REQUIRED)
+#find_package(CUDAToolkit REQUIRED)
+#find_package(Thrust REQUIRED CONFIG)
+#thrust_create_target(Thrust)
 
 # set(CMAKE_CUDA_HOST_COMPILER gcc-8)
 #XXX add -g to debug
@@ -94,6 +96,19 @@ include_directories(DAGExample/glTFLoader/)
 include_directories(DAGExample/src)
 include_directories(DAGExample/utils/)
 
+# Internal library ---- DAG
+add_library(DAG
+        DAGExample/DAG/DAG/DAG.cpp
+        DAGExample/DAG/DAG/DAG.h
+)
+target_include_directories(DAG PUBLIC DAGExample/DAG DAGExample)
+target_link_libraries(DAG PUBLIC glm) #Needed for chag::Aabb
+set_target_properties(DAG
+        PROPERTIES
+                CXX_STANDARD_REQUIRED ON
+                CXX_STANDARD 17
+)
+# Internal library ---- Voxelizer
 add_library(Voxelizer 
     DAGExample/Voxelizer/Voxelizer/Voxelizer.cpp
     DAGExample/Voxelizer/Voxelizer/Voxelizer.h
@@ -105,6 +120,45 @@ set_target_properties(Voxelizer
                 CXX_STANDARD_REQUIRED ON
                 CXX_STANDARD 17
 )
+# Internal library ---- DAGBuilder
+add_library(DAGBuilder 
+        # Impl
+        DAGExample/DAGConstructor/DAGConstructor/DAGConstructor.cpp
+        DAGExample/DAGConstructor/DAGConstructor/DAGConstructor_impl.cu
+        DAGExample/DAGConstructor/DAGConstructor/Merger.cpp
+        # Headers
+        DAGExample/DAGConstructor/DAGConstructor/DAGConstructor.h
+        DAGExample/DAGConstructor/DAGConstructor/DAGConstructor_impl.h
+        DAGExample/DAGConstructor/DAGConstructor/Merger.h
+)
+target_include_directories(DAGBuilder PUBLIC DAGExample/DAGBuilder DAGExample)
+target_link_libraries(DAGBuilder 
+    PUBLIC
+        glfw
+        OpenGL::GL
+        glad
+        glm
+        stb
+        DAG
+    PRIVATE
+        Tracy::TracyClient
+        #CUDA::cudart
+        #CUDA::cuda_driver
+        #Thrust
+)
+set_target_properties(DAGBuilder
+        PROPERTIES
+                CXX_STANDARD_REQUIRED ON
+                CXX_EXTENSIONS ON
+                CXX_STANDARD 17
+                CUDA_STANDARD 17
+                CUDA_EXTENSIONS ON
+                CUDA_SEPARABLE_COMPILATION ON
+                # Need quotes here if we want pass multiple architectures. e.g., 61-real;75-real;86-real
+                # https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html#prop_tgt:CUDA_ARCHITECTURES
+                # Using CMake >= 3.24 we can replace this with all, all-major, or native.
+                CUDA_ARCHITECTURES "${CHAG_CUDA_ARCH}"
+)
 
 add_executable(DAG_Compression
         DAGExample/ColorCompression/ColorCompression/BlockBuild.h
@@ -115,14 +169,6 @@ add_executable(DAG_Compression
         DAGExample/ColorCompression/ColorCompression/ours_varbit.h
         DAGExample/ColorCompression/ColorCompression/svd.cpp
         DAGExample/ColorCompression/ColorCompression/svd.h
-        DAGExample/DAG/DAG/DAG.cpp
-        DAGExample/DAG/DAG/DAG.h
-        DAGExample/DAGConstructor/DAGConstructor/DAGConstructor.cu
-        DAGExample/DAGConstructor/DAGConstructor/DAGConstructor.cuh
-        DAGExample/DAGConstructor/DAGConstructor/DAGConstructor.cpp
-        DAGExample/DAGConstructor/DAGConstructor/DAGConstructor.h
-        DAGExample/DAGConstructor/DAGConstructor/Merger.cpp
-        DAGExample/DAGConstructor/DAGConstructor/Merger.h
         DAGExample/DAGLoader/DAGLoader/DAGLoader.cpp
         DAGExample/DAGLoader/DAGLoader/DAGLoader.h
         DAGExample/DAGTracer/DAGTracer/DAGTracer.cu
@@ -153,24 +199,22 @@ add_executable(DAG_Compression
 
 
 target_link_libraries(DAG_Compression
+PRIVATE
         glfw
         OpenGL::GL
         glad
         glm
         stb
         Tracy::TracyClient
-        CUDA::cudart
-        CUDA::cuda_driver
-        Thrust
+        #CUDA::cudart
+        #CUDA::cuda_driver
+        #Thrust
         cereal
         Voxelizer
+        DAG
+        DAGBuilder
     )
 
-set(CHAG_CUDA_ARCH
-        #  61-real # 1080
-        # 75-real # 2060
-        86-real # 3090
-)
 set_target_properties(DAG_Compression
         PROPERTIES
                 CXX_STANDARD_REQUIRED ON
