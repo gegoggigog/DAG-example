@@ -1,4 +1,4 @@
-R""(
+inline constexpr GLchar voxelize_geom_src[] = R"(
 #version 450 compatibility
 layout ( triangles ) in;
 layout ( triangle_strip, max_vertices = 3 ) out;
@@ -65,4 +65,4 @@ void main()
 	fs_normal = gs_normal[2];
 	EmitVertex();
 }
-)""
+)";

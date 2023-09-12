@@ -4,7 +4,10 @@
 #include <set>
 #include <string>
 #include "shader_helpers.hpp"
-#include "shader_sources.hpp"
+
+#include "voxelize.vert"
+#include "voxelize.geom"
+#include "voxelize.frag"
 
 namespace voxelizer {
 GLuint link_shaders(GLuint vs, GLuint fs, GLuint gs)

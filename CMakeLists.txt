@@ -95,6 +95,17 @@ include_directories(DAGExample/src)
 include_directories(DAGExample/utils/)
 include_directories(DAGExample/Voxelizer/)
 
+add_library(Voxelizer 
+    DAGExample/Voxelizer/Voxelizer/Voxelizer.cpp
+)
+target_include_directories(Voxelizer PUBLIC DAGExample/Voxelizer DAGExample)
+target_link_libraries(Voxelizer PUBLIC glad glm)
+set_target_properties(Voxelizer
+        PROPERTIES
+                CXX_STANDARD_REQUIRED ON
+                CXX_STANDARD 17
+)
+
 add_executable(DAG_Compression
         DAGExample/ColorCompression/ColorCompression/BlockBuild.h
         DAGExample/ColorCompression/ColorCompression/ours.cpp
@@ -130,8 +141,6 @@ add_executable(DAG_Compression
         DAGExample/utils/utils/orientation.h
         DAGExample/utils/utils/view.cpp
         DAGExample/utils/utils/view.h
-        DAGExample/Voxelizer/Voxelizer/Voxelizer.cpp
-        DAGExample/Voxelizer/Voxelizer/Voxelizer.h
         DAGExample/bits_in_uint_array.h
         DAGExample/CudaHelpers.h
         DAGExample/hash.h
@@ -154,6 +163,7 @@ target_link_libraries(DAG_Compression
         CUDA::cuda_driver
         Thrust
         cereal
+        Voxelizer
     )
 
 set(CHAG_CUDA_ARCH

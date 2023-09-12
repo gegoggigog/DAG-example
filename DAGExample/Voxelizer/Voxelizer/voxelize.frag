@@ -1,4 +1,4 @@
-R""( 
+inline constexpr GLchar voxelize_frag_src[] = R"(
 #version 450 compatibility
 #extension GL_ARB_shader_atomic_counters : enable
 #extension GL_NV_gpu_shader5 : enable
@@ -163,7 +163,7 @@ void main() {
 		clamp(int(subvoxel_pos.z - dzdx - dzdy), 0, grid_dim-1)
 	};
 	sort(apa);
-	for(int i = 0; i<1; ++i){
+	for(int i = 0; i<5; ++i){
 		if(i == 0 || apa[i] != apa[i-1]){
 			uvec3 subvoxel_coord2 = uvec3(clamp(uvec2(subvoxel_pos.xy), uvec2(0), uvec2(grid_dim-1)), uint(apa[i]));
 			if      (axis_id == 1) { subvoxel_coord2.xyz = subvoxel_coord2.zyx; }
@@ -178,4 +178,4 @@ void main() {
 	}
 	gl_FragColor = vec4(0,1,1,1);
 }
-)""
+)";
