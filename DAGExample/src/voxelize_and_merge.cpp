@@ -185,6 +185,8 @@ std::optional<dag::DAG> DAG_from_scene(const int dag_resolution, const std::stri
 
 	chag::Aabb square_dag_aabb = make_square_aabb(combined_aabb);
 
+
+
 	// Try to actually construct the DAG
 	std::cout << "Start constructing DAG...\n";
 	auto maybe_dag = dag_constructor.generate_DAG(
