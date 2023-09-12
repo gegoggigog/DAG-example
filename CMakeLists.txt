@@ -93,10 +93,10 @@ include_directories(DAGExample/DAGTracer)
 include_directories(DAGExample/glTFLoader/)
 include_directories(DAGExample/src)
 include_directories(DAGExample/utils/)
-include_directories(DAGExample/Voxelizer/)
 
 add_library(Voxelizer 
     DAGExample/Voxelizer/Voxelizer/Voxelizer.cpp
+    DAGExample/Voxelizer/Voxelizer/Voxelizer.h
 )
 target_include_directories(Voxelizer PUBLIC DAGExample/Voxelizer DAGExample)
 target_link_libraries(Voxelizer PUBLIC glad glm)
