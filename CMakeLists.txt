@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
-project(DAG_Compression LANGUAGES CUDA CXX)
+project(DAG_Compression)
+
+#set(CMAKE_EXE_LINKER_FLAGS "/VERBOSE:LIB")
 
 set(CHAG_CUDA_ARCH
         #  61-real # 1080
@@ -28,20 +30,27 @@ CPMAddPackage(
   OPTIONS "SKIP_PORTABILITY_TEST ON" "JUST_INSTALL_CEREAL ON"
 )
 CPMAddPackage(
-        NAME glfw_download
+        NAME glfw
         GITHUB_REPOSITORY glfw/glfw
         GIT_TAG 3.3.8
         OPTIONS
           "GLFW_BUILD_TESTS OFF"
           "GLFW_BUILD_EXAMPLES OFF"
           "GLFW_BULID_DOCS OFF"
-        DOWNLOAD_ONLY YES
+        #DOWNLOAD_ONLY YES
 )
-
+CPMAddPackage(
+  NAME cxxopts
+  GITHUB_REPOSITORY jarro2783/cxxopts
+  VERSION 2.2.0
+  OPTIONS
+    "CXXOPTS_BUILD_EXAMPLES Off"
+    "CXXOPTS_BUILD_TESTS Off"
+)
 CPMAddPackage("gh:wolfpld/tracy@0.9.1")
 
 #glfw
-add_subdirectory(${glfw_download_SOURCE_DIR})
+#add_subdirectory(${glfw_download_SOURCE_DIR})
 
 # glad
 add_library(glad external/glad/src/gl.c)
@@ -85,146 +94,4 @@ find_package(OpenGL REQUIRED)
 # CUDA device code (without warnings)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
 
-
-include_directories(DAGExample)
-include_directories(DAGExample/ColorCompression/)
-include_directories(DAGExample/DAG/)
-include_directories(DAGExample/DAGConstructor/)
-include_directories(DAGExample/DAGLoader/)
-include_directories(DAGExample/DAGTracer)
-include_directories(DAGExample/glTFLoader/)
-include_directories(DAGExample/src)
-include_directories(DAGExample/utils/)
-
-# Internal library ---- DAG
-add_library(DAG
-        DAGExample/DAG/DAG/DAG.cpp
-        DAGExample/DAG/DAG/DAG.h
-)
-target_include_directories(DAG PUBLIC DAGExample/DAG DAGExample)
-target_link_libraries(DAG PUBLIC glm) #Needed for chag::Aabb
-set_target_properties(DAG
-        PROPERTIES
-                CXX_STANDARD_REQUIRED ON
-                CXX_STANDARD 17
-)
-# Internal library ---- Voxelizer
-add_library(Voxelizer 
-    DAGExample/Voxelizer/Voxelizer/Voxelizer.cpp
-    DAGExample/Voxelizer/Voxelizer/Voxelizer.h
-)
-target_include_directories(Voxelizer PUBLIC DAGExample/Voxelizer DAGExample)
-target_link_libraries(Voxelizer PUBLIC glad glm)
-set_target_properties(Voxelizer
-        PROPERTIES
-                CXX_STANDARD_REQUIRED ON
-                CXX_STANDARD 17
-)
-# Internal library ---- DAGBuilder
-add_library(DAGBuilder 
-        # Impl
-        DAGExample/DAGConstructor/DAGConstructor/DAGConstructor.cpp
-        DAGExample/DAGConstructor/DAGConstructor/DAGConstructor_impl.cu
-        DAGExample/DAGConstructor/DAGConstructor/Merger.cpp
-        # Headers
-        DAGExample/DAGConstructor/DAGConstructor/DAGConstructor.h
-        DAGExample/DAGConstructor/DAGConstructor/DAGConstructor_impl.h
-        DAGExample/DAGConstructor/DAGConstructor/Merger.h
-)
-target_include_directories(DAGBuilder PUBLIC DAGExample/DAGBuilder DAGExample)
-target_link_libraries(DAGBuilder 
-    PUBLIC
-        glfw
-        OpenGL::GL
-        glad
-        glm
-        stb
-        DAG
-    PRIVATE
-        Tracy::TracyClient
-        #CUDA::cudart
-        #CUDA::cuda_driver
-        #Thrust
-)
-set_target_properties(DAGBuilder
-        PROPERTIES
-                CXX_STANDARD_REQUIRED ON
-                CXX_EXTENSIONS ON
-                CXX_STANDARD 17
-                CUDA_STANDARD 17
-                CUDA_EXTENSIONS ON
-                CUDA_SEPARABLE_COMPILATION ON
-                # Need quotes here if we want pass multiple architectures. e.g., 61-real;75-real;86-real
-                # https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html#prop_tgt:CUDA_ARCHITECTURES
-                # Using CMake >= 3.24 we can replace this with all, all-major, or native.
-                CUDA_ARCHITECTURES "${CHAG_CUDA_ARCH}"
-)
-
-add_executable(DAG_Compression
-        DAGExample/ColorCompression/ColorCompression/BlockBuild.h
-        DAGExample/ColorCompression/ColorCompression/ours.cpp
-        DAGExample/ColorCompression/ColorCompression/ours.h
-        DAGExample/ColorCompression/ColorCompression/ours.cu
-        DAGExample/ColorCompression/ColorCompression/ours_varbit.cpp
-        DAGExample/ColorCompression/ColorCompression/ours_varbit.h
-        DAGExample/ColorCompression/ColorCompression/svd.cpp
-        DAGExample/ColorCompression/ColorCompression/svd.h
-        DAGExample/DAGLoader/DAGLoader/DAGLoader.cpp
-        DAGExample/DAGLoader/DAGLoader/DAGLoader.h
-        DAGExample/DAGTracer/DAGTracer/DAGTracer.cu
-        DAGExample/DAGTracer/DAGTracer/DAGTracer.h
-        DAGExample/glTFLoader/glTFLoader/nlohmann/json.hpp
-        DAGExample/glTFLoader/glTFLoader/glTFLoader.cpp
-        DAGExample/glTFLoader/glTFLoader/glTFLoader.h
-        DAGExample/src/my_exe.cpp
-        DAGExample/src/voxelize_and_merge.cpp
-        DAGExample/src/voxelize_and_merge.h
-        DAGExample/utils/utils/Aabb.cpp
-        DAGExample/utils/utils/Aabb.h
-        DAGExample/utils/utils/glm_extensions.cpp
-        DAGExample/utils/utils/glm_extensions.h
-        DAGExample/utils/utils/orientation.cpp
-        DAGExample/utils/utils/orientation.h
-        DAGExample/utils/utils/view.cpp
-        DAGExample/utils/utils/view.h
-        DAGExample/bits_in_uint_array.h
-        DAGExample/CudaHelpers.h
-        DAGExample/hash.h
-        DAGExample/morton.h
-        DAGExample/shader_helpers.cpp
-        DAGExample/shader_helpers.hpp
-        DAGExample/shader_sources.hpp
-        DAGExample/app.hpp
-        )
-
-
-target_link_libraries(DAG_Compression
-PRIVATE
-        glfw
-        OpenGL::GL
-        glad
-        glm
-        stb
-        Tracy::TracyClient
-        #CUDA::cudart
-        #CUDA::cuda_driver
-        #Thrust
-        cereal
-        Voxelizer
-        DAG
-        DAGBuilder
-    )
-
-set_target_properties(DAG_Compression
-        PROPERTIES
-                CXX_STANDARD_REQUIRED ON
-                CXX_EXTENSIONS ON
-                CXX_STANDARD 17
-                CUDA_STANDARD 17
-                CUDA_EXTENSIONS ON
-                CUDA_SEPARABLE_COMPILATION ON
-                # Need quotes here if we want pass multiple architectures. e.g., 61-real;75-real;86-real
-                # https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html#prop_tgt:CUDA_ARCHITECTURES
-                # Using CMake >= 3.24 we can replace this with all, all-major, or native.
-                CUDA_ARCHITECTURES "${CHAG_CUDA_ARCH}"
-)
+add_subdirectory(DAGExample)

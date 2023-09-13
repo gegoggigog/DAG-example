@@ -1,5 +1,4 @@
 #pragma once
-
 #include <cinttypes>
 #include <thrust/device_vector.h>
 #include "DAG/DAG.h"

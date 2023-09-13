@@ -1,17 +1,22 @@
 #include "voxelize_and_merge.h"
-
 #include <stack>
 
 #include <glad/gl.h>
 #include <cuda_gl_interop.h>
 #include <cuda_runtime.h>
 
-
 #include "DAG/DAG.h"
 #include "DAGConstructor/DAGConstructor.h"
 #include "Voxelizer/Voxelizer.h"
 #include "glTFLoader/glTFLoader.h"
+#ifndef NO_TRACE
 #include "tracy/Tracy.hpp"
+#else
+#define ZoneScoped {}
+#define ZoneScopedN(x) {}
+#define ZoneText(x, y) {}
+#define ZoneName(x,y) {}
+#endif // !NO_TRACE
 
 using glm::ivec2;
 using glm::vec2;
@@ -74,8 +79,8 @@ UserData get_draw_data(glTFLoader::Scene& scene)
 			nodes[node.node_id].cached_transform = node.model_matrix;
 			result.renderable_nodes.push_back(node.node_id);
 		}
-		return result;
 	}
+	return result;
 }
 
 void draw_gltf_scene(void *draw_data, GLuint unform_location_modelMatrix) {

@@ -1,4 +1,5 @@
 #include "DAGConstructor_impl.h"
+//#include <glad/gl.h>
 // C-STD
 #include <stdint.h>
 #include <algorithm>
@@ -6,6 +7,7 @@
 #include <math.h>
 // CUDA
 #include <cuda_runtime.h>
+//#include <cuda_gl_interop.h>
 // THRUST
 #include <thrust/functional.h>
 #include <thrust/device_ptr.h>
