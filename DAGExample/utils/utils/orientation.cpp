@@ -1,6 +1,5 @@
 #include "orientation.h"
 #include "glm_extensions.h"
-#include <glad/gl.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
@@ -28,11 +27,6 @@ void orientation::lookAt(vec3 eye, vec3 center) {
 	vec3 right = normalize(perp(dir));
 	vec3 newup = normalize(cross(dir, right));
 	this->R    = mat3(right, newup, dir);
-}
-
-void orientation::set_as_modelview() {
-	mat4 MV = get_MV();
-	glMatrixLoadfEXT(GL_MODELVIEW, glm::value_ptr(MV));
 }
 
 mat4 orientation::get_MV() const {

@@ -17,16 +17,10 @@ class view : public orientation {
 	float m_near         = 1.0;
 	float m_far          = 10000.0;
 
-	virtual void set_as_projection();
-	void push();
-	void pop();
 	glm::mat4 get_MVP() const;
 	glm::mat4 get_MVP_inv() const;
 	virtual glm::mat4 get_P() const;
 	virtual glm::mat4 get_P_inv() const;
-
-	static void drawFullScreenQuad();
-	void draw();
 };
 
 /**

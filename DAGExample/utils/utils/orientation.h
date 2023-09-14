@@ -20,7 +20,6 @@ class orientation {
 
 	mat4 get_MV() const;
 	mat4 get_MV_inv() const;
-	void set_as_modelview();
 
 	void roll(float angle);
 	void yaw(float angle);

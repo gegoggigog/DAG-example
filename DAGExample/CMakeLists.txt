@@ -14,13 +14,11 @@ include_directories(src)
 include_directories(utils)
 
 add_library(CommonCompilerFlags INTERFACE)
-# Add --expt-relaxed-constexpr, allowing us to call constexpr functions in
-# CUDA device code (without warnings)
 target_compile_options(CommonCompilerFlags 
     INTERFACE 
         $<$<COMPILE_LANGUAGE:CUDA>:
             -diag-suppress 20012; # Annoing waring from __device__ explicit constructor something...
-            #--expt-relaxed-constexpr;
+            #--expt-relaxed-constexpr; # allowing us to call constexpr functions in CUDA device code (without warnings)
         >
 )
 
@@ -40,7 +38,7 @@ add_library(DAG STATIC
     utils/utils/view.h
 )
 target_include_directories(DAG PUBLIC DAG)
-target_link_libraries(DAG PUBLIC glm glad)
+target_link_libraries(DAG PUBLIC glm)
 set_target_properties(DAG
     PROPERTIES
         CXX_STANDARD_REQUIRED ON
@@ -72,11 +70,9 @@ add_library(DAGBuilder STATIC
 target_include_directories(DAGBuilder PUBLIC DAGConstructor)
 target_link_libraries(DAGBuilder 
     PUBLIC
-        glfw
         OpenGL::GL
         glad
         glm
-        stb
         DAG
     PRIVATE
         Tracy::TracyClient
