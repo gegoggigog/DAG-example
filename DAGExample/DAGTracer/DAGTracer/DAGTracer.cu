@@ -1,6 +1,6 @@
 #include "DAGTracer.h"
-#define _USE_MATH_DEFINES
-#include <math.h>
+//#define _USE_MATH_DEFINES
+//#include <math.h>
 #include <algorithm>
 
 #include <glad/gl.h>
@@ -842,7 +842,7 @@ struct render_param {
 		glm::vec3 camera_dir         = -camera.R[2];
 		glm::vec3 camera_up          = camera.R[1];
 		glm::vec3 camera_right       = camera.R[0];
-		float camera_fov             = camera.m_fov / 2.0f * (float(M_PI) / 180.0f);
+		float camera_fov             = camera.m_fov / 2.0f * (glm::pi<float>() / 180.0f);
 		float camera_aspect_ratio    = float(w) / float(h);
 		glm::vec3 Z                  = camera_dir * cos(camera_fov);
 		glm::vec3 X                  = camera_right * sin(camera_fov) * camera_aspect_ratio;

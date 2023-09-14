@@ -1,6 +1,6 @@
 #include "ours_varbit.h"
-#define _USE_MATH_DEFINES
-#include <math.h>
+//#define _USE_MATH_DEFINES
+//#include <math.h>
 #include <csignal>
 #include <algorithm>
 #include <array>
