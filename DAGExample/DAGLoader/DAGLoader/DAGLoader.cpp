@@ -7,7 +7,7 @@
 #include <glm/vec3.hpp>
 
 #include <utils/Aabb.h>
-#include <DAG/DAG.h>
+#include <utils/DAG.h>
 #include <ColorCompression/ours_varbit.h>
 
 using glm::vec3;

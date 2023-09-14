@@ -9,8 +9,8 @@
 #include <cassert>
 #include <optional>
 #include <tuple>
-#include "../hash.h"
-#include "../popcnt.h"
+#include "utils/hash.h"
+#include "utils/popcnt.h"
 #include "tracy/Tracy.hpp"
 
 using namespace std;

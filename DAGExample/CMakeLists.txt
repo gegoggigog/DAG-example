@@ -22,22 +22,18 @@ target_compile_options(CommonCompilerFlags
         >
 )
 
-# Internal library ---- DAG
-add_library(DAG STATIC
-    DAG/DAG/DAG.cpp
-    DAG/DAG/DAG.h
+# Internal library ---- utils
+add_library(utils STATIC
     utils/utils/Aabb.cpp
-    utils/utils/Aabb.h
-    utils/utils/glm_extensions.cpp
-    utils/utils/glm_extensions.h
+    utils/utils/DAG.cpp
+    utils/utils/gl_debug_callback.hpp
+    utils/utils/glm_extensions.cpp  
     utils/utils/orientation.cpp
-    utils/utils/orientation.h
     utils/utils/view.cpp
-    utils/utils/view.h
 )
-target_include_directories(DAG PUBLIC DAG utils)
-target_link_libraries(DAG PUBLIC glm)
-set_target_properties(DAG
+target_include_directories(utils PUBLIC utils)
+target_link_libraries(utils PUBLIC glm)
+set_target_properties(utils
     PROPERTIES
         CXX_STANDARD_REQUIRED ON
         CXX_STANDARD 17
@@ -48,7 +44,7 @@ add_library(Voxelizer STATIC
     Voxelizer/Voxelizer/Voxelizer.h
 )
 target_include_directories(Voxelizer PUBLIC Voxelizer)
-target_link_libraries(Voxelizer PUBLIC glad glm DAG)
+target_link_libraries(Voxelizer PUBLIC glad glm utils)
 set_target_properties(Voxelizer
     PROPERTIES
         CXX_STANDARD_REQUIRED ON
@@ -71,7 +67,7 @@ target_link_libraries(DAGBuilder
         OpenGL::GL
         glad
         glm
-        DAG
+        utils
     PRIVATE
         Tracy::TracyClient
         CommonCompilerFlags
@@ -103,14 +99,7 @@ add_executable(DAG_Compression
     src/my_exe.cpp
     src/voxelize_and_merge.cpp
     src/voxelize_and_merge.h
-    bits_in_uint_array.h
-    CudaHelpers.h
-    hash.h
-    morton.h
-    shader_sources.hpp
-    shader_helpers.cpp
-    shader_helpers.hpp
-    app.hpp
+    src/app.hpp
 )
 
 
@@ -124,7 +113,7 @@ target_link_libraries(DAG_Compression
         Tracy::TracyClient
         cereal
         Voxelizer
-        DAG
+        utils
         DAGBuilder
         CommonCompilerFlags
 )

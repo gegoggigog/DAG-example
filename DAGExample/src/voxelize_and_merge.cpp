@@ -6,7 +6,7 @@
 #include <cuda_gl_interop.h>
 #include <cuda_runtime.h>
 
-#include "DAG/DAG.h"
+#include "utils/DAG.h"
 #include "DAGConstructor/DAGConstructor.h"
 #include "Voxelizer/Voxelizer.h"
 #include "glTFLoader/glTFLoader.h"

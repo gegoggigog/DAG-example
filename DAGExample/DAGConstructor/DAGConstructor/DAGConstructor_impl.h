@@ -1,7 +1,7 @@
 #pragma once
 #include <cinttypes>
 #include <thrust/device_vector.h>
-#include "DAG/DAG.h"
+#include "utils/DAG.h"
 #include "utils/Aabb.h"
 
 struct DAGConstructor_impl {

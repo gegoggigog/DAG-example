@@ -101,7 +101,6 @@ add_executable(DAGBuilderCLI
     DAGExample/DAGConstructor/DAGConstructor/cli_main.cpp
     DAGExample/glTFLoader/glTFLoader/glTFLoader.cpp
     DAGExample/src/voxelize_and_merge.cpp
-    DAGExample/shader_helpers.cpp
 )
 target_link_libraries(DAGBuilderCLI
     DAGBuilder

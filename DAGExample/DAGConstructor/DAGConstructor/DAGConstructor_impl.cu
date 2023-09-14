@@ -25,10 +25,10 @@
 
 #include <glm/gtc/type_ptr.hpp>
 // PROJECT
-#include "../CudaHelpers.h" //FIXME: Proper search paths
-#include "../hash.h"        //FIXME: Proper search paths
-#include "../popcnt.h"
-#include "DAG/DAG.h"
+#include "utils/CudaHelpers.h"
+#include "utils/hash.h"
+#include "utils/popcnt.h"
+#include "utils/DAG.h"
 
 
 #ifndef __CUDACC__

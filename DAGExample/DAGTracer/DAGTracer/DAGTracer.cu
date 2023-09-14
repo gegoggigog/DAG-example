@@ -1,17 +1,15 @@
 #include "DAGTracer.h"
-#include <glad/gl.h>
-#include <cuda_gl_interop.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <algorithm>
-#include <glm/gtc/type_ptr.hpp>
-#include "../CudaHelpers.h"        //FIXME: Proper search paths
-#include "../bits_in_uint_array.h" //FIXME: Proper search paths
-#include "../popcnt.h"
-#include <utils/view.h>
 
-#include <bitset>
-#include <limits>	
+#include <glad/gl.h>
+#include <cuda_gl_interop.h>
+#include <glm/gtc/type_ptr.hpp>
+#include "utils/CudaHelpers.h"
+#include "utils/bits_in_uint_array.h"
+#include "utils/popcnt.h"
+#include "utils/view.h"
 
 #define DECODE_COMPRESSED
 

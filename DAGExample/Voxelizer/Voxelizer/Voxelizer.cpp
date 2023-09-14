@@ -5,7 +5,7 @@
 #include <set>
 #include <string>
 
-#include "shader_helpers.hpp"
+#include "utils/shader_helpers.hpp"
 
 #include "voxelize.vert"
 #include "voxelize.geom"

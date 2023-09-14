@@ -1,9 +1,9 @@
 #pragma once
 #include <stdint.h>
-#include "../CudaHelpers.h" //FIXME: Proper search paths
-#include <DAG/DAG.h>
 #include <fstream>
 #include <iosfwd>
+#include "utils/CudaHelpers.h"
+#include "utils/DAG.h"
 
 class FileWriter
 {

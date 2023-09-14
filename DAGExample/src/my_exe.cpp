@@ -10,7 +10,7 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
-#include "DAG/DAG.h"
+#include "utils/DAG.h"
 #include "DAGLoader/DAGLoader.h"
 #include "DAGTracer/DAGTracer.h"
 
@@ -19,11 +19,11 @@
 #include "ColorCompression/ours_varbit.h"
 #include "tracy/Tracy.hpp"
 
-#include "shader_helpers.hpp"
-#include "shader_sources.hpp"
+#include "utils/shader_helpers.hpp"
+#include "utils/gl_debug_callback.hpp"
 
+#include "shader_sources.hpp"
 #include "app.hpp"
-#include "gl_debug_callback.hpp"
 
 using glm::ivec2;
 using glm::vec2;

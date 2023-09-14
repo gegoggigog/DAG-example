@@ -1,8 +1,7 @@
 #include "ours_varbit.h"
-#include "../bits_in_uint_array.h"
-//#include "colorspace.h"
-#include "svd.h"
-
+#define _USE_MATH_DEFINES
+#include <math.h>
+#include <csignal>
 #include <algorithm>
 #include <array>
 #include <inttypes.h>
@@ -14,10 +13,9 @@
 
 #include <glm/glm.hpp>
 
-#define _USE_MATH_DEFINES
-#include <math.h>
-
-#include <csignal>
+#include "utils/bits_in_uint_array.h"
+//#include "colorspace.h"
+#include "svd.h"
 
 #define DEBUG_ERROR false
 
