@@ -22,6 +22,8 @@
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 #include <thrust/adjacent_difference.h>
+
+#include <glm/gtc/type_ptr.hpp>
 // PROJECT
 #include "../CudaHelpers.h" //FIXME: Proper search paths
 #include "../hash.h"        //FIXME: Proper search paths
@@ -911,7 +913,9 @@ dag::DAG DAGConstructor_impl::build_dag(int count, int depth, const chag::Aabb &
 	
 	dag::DAG dag_result;
 	dag_result.m_levels = depth;
-	dag_result.m_aabb   = aabb;
+	//dag_result.m_aabb   = aabb;
+	std::memcpy(dag_result.aabb_min.data(), glm::value_ptr(aabb.min), 3 * sizeof(float));
+	std::memcpy(dag_result.aabb_max.data(), glm::value_ptr(aabb.max), 3 * sizeof(float));
 	// TODO: Return n_paths **and** n_colors to avoid relying on internal state.
 	size_t n_paths  = sort_and_merge_fragments(count);
 

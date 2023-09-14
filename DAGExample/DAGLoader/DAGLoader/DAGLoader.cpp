@@ -60,8 +60,9 @@ namespace dag
   template <class Archive>
   void serialize(Archive& archive, DAG& dag)
   {
+    assert(false); // Fix aabb
     archive(
-      cereal::make_nvp("AABB", dag.m_aabb),
+      //cereal::make_nvp("AABB", dag.m_aabb),
       cereal::make_nvp("levels", dag.m_levels),
       cereal::make_nvp("top levels", dag.m_top_levels),
       cereal::make_nvp("enclosed leaves", dag.m_enclosed_leaves),

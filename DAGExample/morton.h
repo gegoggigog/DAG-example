@@ -1,6 +1,5 @@
 #pragma once
 #include <stdint.h>
-#include <tuple>
 
 inline
 uint32_t split3_32(uint32_t x) {
@@ -34,11 +33,11 @@ T morton_decode_32(uint32_t x) {
 };
 
 inline uint64_t splitBy3_64(uint32_t a) {
-	uint64_t x = a    & 0x00000000001ffffful; // we only look at the first 21 bits
-	x = (x | x << 32) & 0x001f00000000fffful; // shift left 32 bits, OR with self, and 00011111000000000000000000000000000000001111111111111111
-	x = (x | x << 16) & 0x001f0000ff0000fful; // shift left 32 bits, OR with self, and 00011111000000000000000011111111000000000000000011111111
-	x = (x | x << 8)  & 0x100f00f00f00f00ful; // shift left 32 bits, OR with self, and 0001000000001111000000001111000000001111000000001111000000000000
-	x = (x | x << 4)  & 0x10c30c30c30c30c3ul; // shift left 32 bits, OR with self, and 0001000011000011000011000011000011000011000011000011000100000000
+	uint64_t x = a    & 0x00000000001ffffful;
+	x = (x | x << 32) & 0x001f00000000fffful;
+	x = (x | x << 16) & 0x001f0000ff0000fful;
+	x = (x | x << 8)  & 0x100f00f00f00f00ful;
+	x = (x | x << 4)  & 0x10c30c30c30c30c3ul;
 	x = (x | x << 2)  & 0x1249249249249249ul;
 	return x;
 };

@@ -99,17 +99,9 @@ include_directories(DAGExample/glTFLoader)
 # Executable ---- DAGBuilderCLI
 add_executable(DAGBuilderCLI
     DAGExample/DAGConstructor/DAGConstructor/cli_main.cpp
-    DAGExample/glTFLoader/glTFLoader/nlohmann/json.hpp
     DAGExample/glTFLoader/glTFLoader/glTFLoader.cpp
-    DAGExample/glTFLoader/glTFLoader/glTFLoader.h
     DAGExample/src/voxelize_and_merge.cpp
-    DAGExample/src/voxelize_and_merge.h
-    DAGExample/bits_in_uint_array.h
-    DAGExample/CudaHelpers.h
-    DAGExample/hash.h
-    DAGExample/morton.h
-    DAGExample/shader_sources.hpp
-    DAGExample/app.hpp
+    DAGExample/shader_helpers.cpp
 )
 target_link_libraries(DAGBuilderCLI
     DAGBuilder

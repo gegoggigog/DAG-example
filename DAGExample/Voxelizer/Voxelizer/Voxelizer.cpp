@@ -105,14 +105,12 @@ uint32_t generate_voxels(Context& ctx, const chag::Aabb aabb, int grid_resolutio
 	enum class Axis { X, Y, Z };
 	auto get_camera = [&aabb](Axis axis) {
 		// clang-format off
-		const glm::vec3 pos =
-			axis == Axis::X ? aabb.getCentre() - aabb.getHalfSize().x * glm::vec3{ 1.f, 0.f, 0.f } :
-			axis == Axis::Y ? aabb.getCentre() - aabb.getHalfSize().y * glm::vec3{ 0.f, 1.f, 0.f } :
-			/* axis == Axis::Z ? */ aabb.getCentre() - aabb.getHalfSize().z * glm::vec3{ 0.f, 0.f, 1.f };
-		const glm::vec3 up =
-			axis == Axis::X ? glm::vec3{ 0.f, 1.f, 0.f } :
-			axis == Axis::Y ? glm::vec3{ 0.f, 0.f, 1.f } :
-			/* axis == Axis::Z ? */ glm::vec3{ 1.f, 0.f, 0.f };
+		const glm::vec3 pos = axis == Axis::X ?    aabb.getCentre() - aabb.getHalfSize().x * glm::vec3{ 1.f, 0.f, 0.f } :
+			                  axis == Axis::Y ?    aabb.getCentre() - aabb.getHalfSize().y * glm::vec3{ 0.f, 1.f, 0.f } :
+			               /* axis == Axis::Z ? */ aabb.getCentre() - aabb.getHalfSize().z * glm::vec3{ 0.f, 0.f, 1.f };
+		const glm::vec3 up = axis == Axis::X ?    glm::vec3{ 0.f, 1.f, 0.f } :
+			                 axis == Axis::Y ?    glm::vec3{ 0.f, 0.f, 1.f } :
+			              /* axis == Axis::Z ? */ glm::vec3{ 1.f, 0.f, 0.f };
 		// clang-format on
 
 		// Figure out clipping planes.

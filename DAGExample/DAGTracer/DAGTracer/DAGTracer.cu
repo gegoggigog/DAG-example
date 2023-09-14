@@ -4,6 +4,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <algorithm>
+#include <glm/gtc/type_ptr.hpp>
 #include "../CudaHelpers.h"        //FIXME: Proper search paths
 #include "../bits_in_uint_array.h" //FIXME: Proper search paths
 #include "../popcnt.h"
@@ -51,12 +52,12 @@ void upload_to_gpu(dag::DAG &dag)
 		//FileWriter writer("cache/result.basic_dag.dag.bin");
 		std::cerr << "FIX THIS YOU DUMB\n";
 		FileWriter writer(R"(C:\Users\dan\garbage_collector\DAG_Compression\cache\result.basic_dag.dag.bin)");
-		writer.write(double(dag.m_aabb.min.x));
-		writer.write(double(dag.m_aabb.min.y));
-		writer.write(double(dag.m_aabb.min.z));
-		writer.write(double(dag.m_aabb.max.x));
-		writer.write(double(dag.m_aabb.max.y));
-		writer.write(double(dag.m_aabb.max.z));
+		writer.write(double(dag.aabb_min[0]));
+		writer.write(double(dag.aabb_min[1]));
+		writer.write(double(dag.aabb_min[2]));
+		writer.write(double(dag.aabb_max[0]));
+		writer.write(double(dag.aabb_max[1]));
+		writer.write(double(dag.aabb_max[2]));
 		
 		writer.write(dag.m_levels + 2);
 		writer.write(dag_array);
@@ -855,17 +856,21 @@ struct render_param {
 		///////////////////////////////////////////////////////////////////////////
 		// Transform these points into "DAG" space and generate pixel dx/dy
 		///////////////////////////////////////////////////////////////////////////
-		glm::vec3 translation = -dag.m_aabb.min;
-		float fres            = float(dag.geometryResolution());
-		glm::vec3 scale       = glm::vec3(fres) / glm::vec3(dag.m_aabb.getHalfSize() * 2.0f);
+		const glm::vec3 aabb_min    = glm::make_vec3(dag.aabb_min.data());
+		const glm::vec3 aabb_max    = glm::make_vec3(dag.aabb_max.data());
+		const glm::vec3 aabb_size   = aabb_max - aabb_min;
+		const glm::vec3 translation = -aabb_min;
+		const float fres            = float(dag.geometryResolution());
+		const glm::vec3 scale       = glm::vec3{fres} / aabb_size;
+
 		camera_pos            = (camera_pos     + translation) * scale;
 		p_bottom_left         = (p_bottom_left  + translation) * scale;
 		p_top_left            = (p_top_left     + translation) * scale;
 		p_bottom_right        = (p_bottom_right + translation) * scale;
 
-		auto to_double3 = [](auto v) {return make_double3(v.x, v.y, v.z); };
-		d_dx                  = to_double3(p_bottom_right - p_bottom_left) * (1.0 / double(w));
-		d_dy                  = to_double3(p_top_left     - p_bottom_left) * (1.0 / double(h));
+		auto to_double3 = [](auto v) { return make_double3(v.x, v.y, v.z); };
+		d_dx            = to_double3(p_bottom_right - p_bottom_left) * (1.0 / double(w));
+		d_dy            = to_double3(p_top_left     - p_bottom_left) * (1.0 / double(h));
 	}
 };
 

@@ -4,7 +4,7 @@
 #include <tuple>
 #include <vector>
 #include <chrono>
-#include <utils/Aabb.h>
+#include <glm/gtc/type_ptr.hpp>
 #include "Merger.h"
 
 #include <tracy/Tracy.hpp>
@@ -105,7 +105,8 @@ std::optional<dag::DAG> DAGConstructor::generate_DAG(GetVoxelFunction get_voxels
 	// When all DAGs have been merged, the result resides in the
 	// first slot of the array.
 	if (dags[0]) {
-		dags[0]->m_aabb = aabb_in;
+		std::memcpy(dags[0]->aabb_min.data(), glm::value_ptr(aabb_in.min), 3 * sizeof(float));
+		std::memcpy(dags[0]->aabb_max.data(), glm::value_ptr(aabb_in.max), 3 * sizeof(float));
 		return std::move(dags[0]);
 	}
 	return {};

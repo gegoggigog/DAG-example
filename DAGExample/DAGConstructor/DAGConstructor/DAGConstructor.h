@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <DAG/DAG.h>
+#include <utils/Aabb.h>
 
 struct DAGConstructor_impl;
 class DAGConstructor {

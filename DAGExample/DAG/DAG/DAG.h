@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
-#include <utils/Aabb.h>
+#include <array>
 
 namespace dag {
 
@@ -19,17 +19,16 @@ struct DAG {
 	std::vector<std::vector<uint64_t>> m_hashes;
 	//std::vector<uint32_t> m_base_colors;
 
-	///////////////////////////////////////////////////////////////////////////
 	// For the "top levels" (which currently coincide with the top levels we
 	// added when merging the DAGs), we do not store the "number of enclosed
 	// leaves" in the upper 24 bits of the mask. Istead, we store an index
 	// there, into a separate array of 32 bit "enclosed leaves" entries.
-	///////////////////////////////////////////////////////////////////////////
 	uint32_t m_top_levels = 0;
 	uint64_t *d_enclosed_leaves = nullptr;
 	std::vector<uint64_t> m_enclosed_leaves;
 	bool colors_in_all_nodes = false;
 
-	chag::Aabb m_aabb;
+	std::array<float, 3> aabb_min;
+	std::array<float, 3> aabb_max;
 };
 }  // namespace dag

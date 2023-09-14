@@ -5,13 +5,13 @@ enable_language(CUDA CXX)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 include_directories(ColorCompression)
-include_directories(DAG)
-include_directories(DAGConstructor)
-include_directories(DAGLoader)
-include_directories(DAGTracer)
 include_directories(glTFLoader)
 include_directories(src)
-include_directories(utils)
+#include_directories(DAG)
+#include_directories(DAGConstructor)
+include_directories(DAGLoader)
+include_directories(DAGTracer)
+#include_directories(utils)
 
 add_library(CommonCompilerFlags INTERFACE)
 target_compile_options(CommonCompilerFlags 
@@ -28,8 +28,6 @@ add_library(DAG STATIC
     DAG/DAG/DAG.h
     utils/utils/Aabb.cpp
     utils/utils/Aabb.h
-    shader_helpers.cpp
-    shader_helpers.hpp
     utils/utils/glm_extensions.cpp
     utils/utils/glm_extensions.h
     utils/utils/orientation.cpp
@@ -37,7 +35,7 @@ add_library(DAG STATIC
     utils/utils/view.cpp
     utils/utils/view.h
 )
-target_include_directories(DAG PUBLIC DAG)
+target_include_directories(DAG PUBLIC DAG utils)
 target_link_libraries(DAG PUBLIC glm)
 set_target_properties(DAG
     PROPERTIES
@@ -110,6 +108,8 @@ add_executable(DAG_Compression
     hash.h
     morton.h
     shader_sources.hpp
+    shader_helpers.cpp
+    shader_helpers.hpp
     app.hpp
 )
 
