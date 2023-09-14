@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include <algorithm>
 #include <sstream>
-#include <math.h>
+//#include <math.h>
 // CUDA
-#include <cuda_runtime.h>
+//#include <cuda_runtime.h>
 //#include <cuda_gl_interop.h>
 // THRUST
 #include <thrust/functional.h>

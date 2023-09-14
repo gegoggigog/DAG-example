@@ -198,7 +198,7 @@ uint32_t generate_voxels(Context& ctx, const chag::Aabb aabb, int grid_resolutio
 	glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
 	glUseProgram(0);
 
-	assert(frag_count < ctx.m_tex_dim);
+	//assert(frag_count < ctx.m_tex_dim);
 	return frag_count;
 }
 

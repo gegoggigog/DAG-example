@@ -15,7 +15,7 @@ inline void printSeconds(double input_seconds) {
 	std::cout << minutes << ":" << seconds << " ";
 }
 
-void print_subdag_process(const int it, const int mod, const int total, std::chrono::steady_clock::time_point startTime) {
+void print_subdag_process(const int it, const int mod, const std::size_t total, std::chrono::steady_clock::time_point startTime) {
 	if (it % mod == 0)
 	{
 		std::cout << "Generating sub DAG " << it << " of " << total << ". ";
@@ -28,7 +28,7 @@ void print_subdag_process(const int it, const int mod, const int total, std::chr
 	}
 }
 
-void print_merge_progress(const int it, const int dags_left, std::chrono::steady_clock::time_point passStartTime) {
+void print_merge_progress(const std::size_t it, const std::size_t dags_left, std::chrono::steady_clock::time_point passStartTime) {
 	std::cout << "Sub - pass " << it + 1 << " of " << dags_left / 8;
 	const double elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - passStartTime).count();
 	std::cout << " Elapsed: ";
@@ -67,6 +67,7 @@ std::optional<dag::DAG> DAGConstructor::generate_DAG(GetVoxelFunction get_voxels
 			dags[i] = cuda_builder->build_dag(voxels.count, LevelsExcluding64BitLeafs, aabb);
 		}
 	}
+	const auto DAGTimeDone = std::chrono::high_resolution_clock::now();
 	std::cout << "done.\n";
 	std::cout << "Total voxels: " << total_count << "\n";
 #if 0
@@ -85,7 +86,7 @@ std::optional<dag::DAG> DAGConstructor::generate_DAG(GetVoxelFunction get_voxels
 	while (dags_left != 1) {
 		std::cout << "Passes left: " << static_cast<int>(std::log(dags_left) / std::log(8)) << ".\n";
 		const auto passStartTime = std::chrono::high_resolution_clock::now();
-		for (std::size_t i{ 0 }; i < dags_left / 8; ++i) {
+		for (std::size_t i = 0; i < dags_left / 8; ++i) {
 			print_merge_progress(i, dags_left, passStartTime);
 
 			std::array<DAG_opt, 8> batch;
@@ -97,7 +98,10 @@ std::optional<dag::DAG> DAGConstructor::generate_DAG(GetVoxelFunction get_voxels
 		dags_left /= 8;
 		std::swap(dags, merged_dags);
 	}
+	const auto MergeTimeDone = std::chrono::high_resolution_clock::now();
 	std::cout << "done.\n";
+	std::cout << "Time to DAG: "   << std::chrono::duration_cast<std::chrono::duration<double>>(DAGTimeDone - startTime).count()     << " seconds\n";
+	std::cout << "Time to Merge: " << std::chrono::duration_cast<std::chrono::duration<double>>(MergeTimeDone - DAGTimeDone).count() << " seconds\n";
 	// When all DAGs have been merged, the result resides in the
 	// first slot of the array.
 	if (dags[0]) {

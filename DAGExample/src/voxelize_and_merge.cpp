@@ -24,7 +24,8 @@ using glm::vec3;
 using glm::vec4;
 
 // In case of morton encoding into 32 bits, this must be at most 1024 (2^(floor(32/3)) == 1024)
-// We could go higher here, but this will probably generate more voxels than our output buffer 
+// Currently we encode into 64 bits resulting in an upper limit of 2097152.
+// We use max resolution of 2048 however as going higher will probably generate more voxels than our output buffer 
 // m_tex_dim == 128*1024*1024. 
 constexpr int max_subdag_resolution{2048};
 
@@ -201,7 +202,6 @@ std::optional<dag::DAG> DAG_from_scene(const int dag_resolution, const std::stri
 			subdag_levels_excluding_64bit_leaf,
 			square_dag_aabb
 		);
-
 
 	//cudaGraphicsUnmapResources(1, &cuda_base_color_resource);
 	cudaGraphicsUnmapResources(1, &cuda_position_resource);

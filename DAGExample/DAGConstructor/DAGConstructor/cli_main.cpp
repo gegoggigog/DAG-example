@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
 	//glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	//glDebugMessageCallback(glDebugOutput, nullptr);
 	//glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-	constexpr int dag_resolution{ 1 << 11 };
+	constexpr int dag_resolution{ 1 << 12 };
 	std::cout << "Resolution: " << dag_resolution << std::endl;
 	std::optional<dag::DAG> dag = DAG_from_scene(dag_resolution, R"(C:\Users\dan\garbage_collector\DAG_Compression\assets\Sponza\glTF\)", "Sponza.gltf");
 	

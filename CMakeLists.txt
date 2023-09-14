@@ -1,13 +1,28 @@
-cmake_minimum_required(VERSION 3.14)
-project(DAG_Compression)
+cmake_minimum_required(VERSION 3.24)
+project(DAG_Compression LANGUAGES CXX)
 
-#set(CMAKE_EXE_LINKER_FLAGS "/VERBOSE:LIB")
+# https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html#prop_tgt:CUDA_ARCHITECTURES
+# https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#gpu-compilation
+# https://en.wikipedia.org/wiki/CUDA
+# virtual: lowest to run on
+# real:    generate for gpu
+# 61: 10XX
+# 75: 20XX
+# 86: 30XX
+# 89: 40XX
 
-set(CHAG_CUDA_ARCH
-        #  61-real # 1080
-        # 75-real # 2060
-        86-real # 3090
-)
+# CMake >= 3.18: (Manually specify archs)
+# ---------------------------------------
+# set(CHAG_CUDA_ARCH 50-virtual 86-real)
+
+# CMake >= 3.23: (Build to support all archs (?))
+# -----------------------------------------------
+# set(CHAG_CUDA_ARCH all)
+# set(CHAG_CUDA_ARCH all-major)
+
+# CMake >= 3.24: (Build only for current arch)
+# --------------------------------------------
+set(CHAG_CUDA_ARCH native)
 
 include(cmake/CPM.cmake)
 
@@ -49,9 +64,6 @@ CPMAddPackage(
 )
 CPMAddPackage("gh:wolfpld/tracy@0.9.1")
 
-#glfw
-#add_subdirectory(${glfw_download_SOURCE_DIR})
-
 # glad
 add_library(glad external/glad/src/gl.c)
 target_include_directories(glad PUBLIC external/glad/include)
@@ -65,33 +77,56 @@ file(WRITE ${CMAKE_BINARY_DIR}/stb_image.c
 #include <stb_image.h>
 ]=])
 add_library(stb ${CMAKE_BINARY_DIR}/stb_image.c)
-target_include_directories(stb PUBLIC ${stb_SOURCE_DIR})
+target_include_directories(stb SYSTEM PUBLIC ${stb_SOURCE_DIR})
 
 # glm
 add_library(glm INTERFACE)
 target_include_directories(glm SYSTEM INTERFACE ${glm_SOURCE_DIR})
 
-#set(CMAKE_CXX_STANDARD 17)
-#set(CMAKE_CUDA_STANDARD 14)
-#set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
-#set(CMAKE_CXX_FLAGS_RELEASE "-g -O3")
-
-# Ignore some warnings that add a lot of spam and aren't that critical:
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable -Wno-unused-parameter")
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-parentheses -Wall -Wextra -Wconversion")
-
 
 find_package(OpenGL REQUIRED)
-#find_package(CUDAToolkit REQUIRED)
+find_package(CUDAToolkit REQUIRED)
 #find_package(Thrust REQUIRED CONFIG)
 #thrust_create_target(Thrust)
 
-# set(CMAKE_CUDA_HOST_COMPILER gcc-8)
-#XXX add -g to debug
-# set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -gencode arch=compute_61,code=sm_61)
-
-# Add --expt-relaxed-constexpr, allowing us to call constexpr functions in
-# CUDA device code (without warnings)
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
-
 add_subdirectory(DAGExample)
+
+include_directories(DAGExample)
+include_directories(DAGExample/src)
+include_directories(DAGExample/utils)
+include_directories(DAGExample/glTFLoader)
+# Executable ---- DAGBuilderCLI
+add_executable(DAGBuilderCLI
+    DAGExample/DAGConstructor/DAGConstructor/cli_main.cpp
+    DAGExample/glTFLoader/glTFLoader/nlohmann/json.hpp
+    DAGExample/glTFLoader/glTFLoader/glTFLoader.cpp
+    DAGExample/glTFLoader/glTFLoader/glTFLoader.h
+    DAGExample/src/voxelize_and_merge.cpp
+    DAGExample/src/voxelize_and_merge.h
+    DAGExample/bits_in_uint_array.h
+    DAGExample/CudaHelpers.h
+    DAGExample/hash.h
+    DAGExample/morton.h
+    DAGExample/shader_sources.hpp
+    DAGExample/app.hpp
+)
+target_link_libraries(DAGBuilderCLI
+    DAGBuilder
+    cxxopts
+    glfw
+    OpenGL::GL
+    glad
+    glm
+    stb
+    Tracy::TracyClient
+    CUDA::cudart
+    cereal
+    Voxelizer
+    DAG
+)
+
+set_target_properties(DAGBuilderCLI
+    PROPERTIES
+        CXX_STANDARD_REQUIRED ON
+        CXX_STANDARD 17
+)
