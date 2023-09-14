@@ -50,7 +50,7 @@ void upload_to_gpu(dag::DAG &dag)
 
 	{
 		//FileWriter writer("cache/result.basic_dag.dag.bin");
-		std::cerr << "FIX THIS YOU DUMB\n";
+		puts("FIX THIS YOU DUMB");
 		FileWriter writer(R"(C:\Users\dan\garbage_collector\DAG_Compression\cache\result.basic_dag.dag.bin)");
 		writer.write(double(dag.aabb_min[0]));
 		writer.write(double(dag.aabb_min[1]));
@@ -61,7 +61,7 @@ void upload_to_gpu(dag::DAG &dag)
 		
 		writer.write(dag.m_levels + 2);
 		writer.write(dag_array);
-		printf("wrote dag\n");
+		puts("wrote dag");
 	}
 
 	if (dag.d_data)            { cudaFree(dag.d_data);            dag.d_data            = nullptr;}

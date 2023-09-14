@@ -1,5 +1,6 @@
 #include "Voxelizer.h"
 #include <fstream>
+#include <iostream>
 #include <vector>
 #include <set>
 #include <string>

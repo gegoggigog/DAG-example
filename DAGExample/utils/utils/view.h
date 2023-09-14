@@ -1,6 +1,5 @@
 #pragma once
 #include "orientation.h"
-#include <iostream>
 
 /**
  * A view is a composite of its base class, the orientation

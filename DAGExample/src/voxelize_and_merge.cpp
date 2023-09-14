@@ -1,5 +1,6 @@
 #include "voxelize_and_merge.h"
 #include <stack>
+#include <iostream>
 
 #include <glad/gl.h>
 #include <cuda_gl_interop.h>
