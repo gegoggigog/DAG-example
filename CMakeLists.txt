@@ -114,7 +114,7 @@ target_link_libraries(DAGBuilderCLI
     CUDA::cudart
     cereal
     Voxelizer
-    DAG
+    utils
 )
 
 set_target_properties(DAGBuilderCLI

@@ -1,8 +1,8 @@
 #include <iostream>
 #include <glad/gl.h>
-#include "../CudaHelpers.h" //FIXME: Proper search paths
+//#include "../CudaHelpers.h" //FIXME: Proper search paths
 #include <GLFW/glfw3.h>
-#include "DAG/DAG.h"
+#include "utils/DAG.h"
 //#include "gl_debug_callback.hpp"
 #include <voxelize_and_merge.h>
 
