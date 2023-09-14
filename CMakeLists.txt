@@ -99,7 +99,6 @@ include_directories(DAGExample/glTFLoader)
 # Executable ---- DAGBuilderCLI
 add_executable(DAGBuilderCLI
     DAGExample/DAGConstructor/DAGConstructor/cli_main.cpp
-    DAGExample/glTFLoader/glTFLoader/glTFLoader.cpp
     DAGExample/src/voxelize_and_merge.cpp
 )
 target_link_libraries(DAGBuilderCLI

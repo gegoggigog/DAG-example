@@ -14,7 +14,7 @@
 #include "DAGLoader/DAGLoader.h"
 #include "DAGTracer/DAGTracer.h"
 
-#include "glTFLoader/glTFLoader.h"
+#include "utils/glTFLoader/glTFLoader.h"
 #include "voxelize_and_merge.h"
 #include "ColorCompression/ours_varbit.h"
 #include "tracy/Tracy.hpp"

@@ -9,7 +9,7 @@
 #include "utils/DAG.h"
 #include "DAGConstructor/DAGConstructor.h"
 #include "Voxelizer/Voxelizer.h"
-#include "glTFLoader/glTFLoader.h"
+#include "utils/glTFLoader/glTFLoader.h"
 #ifndef NO_TRACE
 #include "tracy/Tracy.hpp"
 #else
