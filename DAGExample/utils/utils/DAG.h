@@ -13,11 +13,15 @@ struct DAG {
 	//void calculateColorForAllNodes();
 
 	uint32_t *d_data       = nullptr;
-	//uint32_t *d_color_data = nullptr;
+#ifdef DAG_COLORS
+	uint32_t *d_color_data = nullptr;
+#endif
 
 	std::vector<std::vector<uint32_t>> m_data;
 	std::vector<std::vector<uint64_t>> m_hashes;
-	//std::vector<uint32_t> m_base_colors;
+#ifdef DAG_COLORS
+	std::vector<uint32_t> m_base_colors;
+#endif
 
 	// For the "top levels" (which currently coincide with the top levels we
 	// added when merging the DAGs), we do not store the "number of enclosed

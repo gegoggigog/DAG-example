@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 project(DAG_Compression LANGUAGES CXX)
 
+# FXME: Handle in code instead
+add_compile_definitions(DAG_COLORS)
+
 # https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html#prop_tgt:CUDA_ARCHITECTURES
 # https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#gpu-compilation
 # https://en.wikipedia.org/wiki/CUDA
@@ -78,6 +81,16 @@ file(WRITE ${CMAKE_BINARY_DIR}/stb_image.c
 ]=])
 add_library(stb ${CMAKE_BINARY_DIR}/stb_image.c)
 target_include_directories(stb SYSTEM PUBLIC ${stb_SOURCE_DIR})
+
+#tinygltf
+file(WRITE ${CMAKE_BINARY_DIR}/tinygltf.cpp
+[=[
+#define TINYGLTF_IMPLEMENTATION 
+#include "tiny_gltf.h"
+]=])
+add_library(tinygltf ${CMAKE_BINARY_DIR}/tinygltf.cpp)
+target_link_libraries(tinygltf PRIVATE stb)
+target_include_directories(tinygltf SYSTEM PUBLIC external)
 
 # glm
 add_library(glm INTERFACE)

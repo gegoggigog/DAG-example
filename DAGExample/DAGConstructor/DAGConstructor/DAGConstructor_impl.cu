@@ -1,13 +1,8 @@
 #include "DAGConstructor_impl.h"
-//#include <glad/gl.h>
 // C-STD
 #include <stdint.h>
 #include <algorithm>
 #include <sstream>
-//#include <math.h>
-// CUDA
-//#include <cuda_runtime.h>
-//#include <cuda_gl_interop.h>
 // THRUST
 #include <thrust/functional.h>
 #include <thrust/device_ptr.h>
@@ -93,7 +88,7 @@ void DAGConstructor_impl::upload_path(uint64_t* pos, int count) {
 }
 
 void DAGConstructor_impl::upload_colors(uint32_t* col, int count) {
-	//copy_to_device(this->base_color, pos, count);
+	copy_to_device(this->base_color, col, count);
 }
 
 uint32_t count_child_nodes(int lvl, int bottomlevel, uint32_t node_idx, std::vector<std::vector<uint32_t>> *dag) {
@@ -752,8 +747,9 @@ std::size_t DAGConstructor_impl::sort_and_merge_fragments(std::size_t count) {
 			th_unique.cbegin(),
 			th_unique.cend(),
 			th_pre_inc_sum.begin()) - 1);
-
+#ifdef DAG_COLORS
 	const auto compaction = [&](thrust::device_vector<uint32_t>& vec_in, const bool ignore_black) {
+		// FIXME: wat
 		struct CompactCache
 		{
 			thrust::device_vector<float4> th_sorted_data;
@@ -829,7 +825,8 @@ std::size_t DAGConstructor_impl::sort_and_merge_fragments(std::size_t count) {
 		}
 	};
 
-	//compaction(base_color, false);
+	compaction(base_color, false);
+#endif
 
 	// Truncate positions and collect unique
 	// Calculate parent paths
@@ -961,7 +958,7 @@ dag::DAG DAGConstructor_impl::build_dag(int count, int depth, const chag::Aabb &
 				cudaMemcpyDeviceToHost
 			);
 		}
-
+#ifdef DAG_COLORS
 		// Copy data.
 		auto copy_to_host = [&](std::vector<uint32_t>& host_vec, const thrust::device_vector<uint32_t>& th_vec) {
 			{
@@ -975,17 +972,18 @@ dag::DAG DAGConstructor_impl::build_dag(int count, int depth, const chag::Aabb &
 				cudaMemcpyDeviceToHost
 			);
 		};
-		//copy_to_host(dag_result.m_base_colors, base_color);
-
-		if (false)
+		copy_to_host(dag_result.m_base_colors, base_color);
 		{
 			ZoneScopedN("count_child_nodes");
 			count_child_nodes(0, dag_result.m_levels, 0, &dag_result.m_data);
 		}
+#endif
 		{
 			ZoneScopedN("shrink_to_fit");
 			dag_result.m_data.shrink_to_fit();
-			//dag_result.m_base_colors.shrink_to_fit();
+#ifdef DAG_COLORS
+			dag_result.m_base_colors.shrink_to_fit();
+#endif
 		}
 	}
 	return dag_result;

@@ -38,7 +38,8 @@ constexpr bool load_cached{ false };
 constexpr bool load_compressed{ false };
 
 const char* dag_file              = R"(cache/dag16k.bin)";
-const char* raw_color_file        = R"(cache/raw16k.bin)";
+//const char* raw_color_file        = R"(cache/raw16k.bin)";
+const char* raw_color_file        = R"(raw16k.bin)";
 const char* compressed_color_file = R"(cache/compressed16k.bin)";
 
 static void error_callback(int error, const char* description)
@@ -92,7 +93,7 @@ int main(int argc, char* argv[]) {
 
 	ZoneScoped;
 	
-	constexpr int dag_resolution{ 1 << 12 };
+	constexpr int dag_resolution{ 1 << 11 };
 	std::cout << "Resolution: " << dag_resolution << std::endl;
 
 	std::optional<dag::DAG> dag;
@@ -161,7 +162,12 @@ int main(int argc, char* argv[]) {
 
 		ours_varbit::upload_to_gpu(compressed_color);
 	}
-#endif		
+#endif
+		write_to_disc(raw_color_file, dag->m_base_colors);
+		disc_vector<uint32_t> da{ raw_color_file, macro_block_size };
+		compressed_color = ours_varbit::compressColors_alternative_par(std::move(da), 0.05f, ours_varbit::ColorLayout::RGB_5_6_5);
+		ours_varbit::upload_to_gpu(compressed_color);
+
 		DAGTracer dag_tracer;
 		dag_tracer.resize(screen_dim.x, screen_dim.y);
 

@@ -35,7 +35,9 @@ namespace voxelizer
 		GLuint m_grid_size = 0xFFFFFFFF;
 
 		GLuint m_position_ssbo = 0xFFFFFFFF;
-		//GLuint m_base_color_ssbo = 0xFFFFFFFF;
+#ifdef DAG_COLORS
+		GLuint m_base_color_ssbo = 0xFFFFFFFF;
+#endif
 		GLuint m_mask_ssbo = 0xFFFFFFFF;
 		GLuint m_frag_count = 0xFFFFFFFF;
 		GLuint m_num_colors = 0xFFFFFFFF;

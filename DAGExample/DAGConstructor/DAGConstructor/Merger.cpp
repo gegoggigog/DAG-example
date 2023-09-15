@@ -422,7 +422,7 @@ merge(const std::array<std::optional<dag::DAG>, 8> &batch)
 
 		// Construct upper leves, similar to
 		// the DAG construction on the gpu.
-#if 0
+#ifdef DAG_COLORS
 		std::size_t required_size;
 		{
 			ZoneScopedN("std::accumulate");

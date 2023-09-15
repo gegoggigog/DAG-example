@@ -20,7 +20,9 @@ class DAGConstructor {
 
 	struct RawData {
 		uint64_t* positions;
-		//uint32_t *base_color;
+#ifdef DAG_COLORS
+		uint32_t *base_color;
+#endif
 		uint32_t count;
 		enum {
 			ON_GPU,

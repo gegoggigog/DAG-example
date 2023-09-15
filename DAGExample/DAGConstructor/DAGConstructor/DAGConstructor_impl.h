@@ -27,7 +27,9 @@ struct DAGConstructor_impl {
 	thrust::device_vector<uint32_t> parent_svo_nodes;
 
 	thrust::device_vector<uint64_t> path;
-	//thrust::device_vector<uint32_t> base_color;
+#ifdef DAG_COLORS
+	thrust::device_vector<uint32_t> base_color;
+#endif
 
 	int m_parent_svo_size;
 	std::size_t m_child_svo_size;

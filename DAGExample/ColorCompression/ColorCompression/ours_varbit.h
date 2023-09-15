@@ -25,6 +25,7 @@ public:
   virtual ~disc_vector() = default;
   disc_vector(const std::string file, std::size_t cache_size) : ifs{ file, std::ifstream::binary | std::ifstream::in | std::ifstream::ate }
   {
+      if (!ifs.good()) throw "EEEE";
     const_cast<std::size_t&>(_size) = ifs.tellg() / sizeof(T);
     ifs.seekg(std::ifstream::beg);
     _cache.resize(cache_size);

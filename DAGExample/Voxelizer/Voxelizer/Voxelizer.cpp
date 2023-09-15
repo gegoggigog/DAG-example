@@ -9,7 +9,11 @@
 
 #include "voxelize.vert"
 #include "voxelize.geom"
+#ifdef DAG_COLORS
+#include "voxelize_with_colors.frag"
+#else
 #include "voxelize.frag"
+#endif DAG_COLORS
 
 namespace voxelizer {
 GLuint link_shaders(GLuint vs, GLuint fs, GLuint gs)
@@ -82,11 +86,11 @@ Context create_context(unsigned grid_size)
 		glBufferData(GL_SHADER_STORAGE_BUFFER, ctx.m_tex_dim * sizeof(uint64_t), NULL, GL_STATIC_DRAW);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
-#if 0
+#ifdef DAG_COLORS
 		// Data buffer (base color)
-		glGenBuffers(1, &m_base_color_ssbo);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_base_color_ssbo);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, m_tex_dim * sizeof(uint32_t), NULL, GL_STATIC_DRAW);
+		glGenBuffers(1, &ctx.m_base_color_ssbo);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, ctx.m_base_color_ssbo);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, ctx.m_tex_dim * sizeof(uint32_t), NULL, GL_STATIC_DRAW);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 #endif
 
@@ -167,12 +171,11 @@ uint32_t generate_voxels(Context& ctx, const chag::Aabb aabb, int grid_resolutio
 
 	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, ctx.m_frag_ctr_buffer);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ctx.m_position_ssbo);
-	//glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_base_color_ssbo);
+#ifdef DAG_COLORS
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ctx.m_base_color_ssbo);
+#endif
 
 	glBindFramebuffer(GL_FRAMEBUFFER, ctx.m_dummy_fbo);
-	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	//glClearColor(1, 0, 0, 1);
-	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	{
 		glViewport(0, 0, grid_resolution, grid_resolution);
 		glDisable(GL_CULL_FACE);
@@ -205,7 +208,9 @@ void destroy_context(Context& ctx)
 {
 	glDeleteBuffers(1, &ctx.m_frag_ctr_buffer);
 	glDeleteBuffers(1, &ctx.m_position_ssbo);
-	//glDeleteBuffers(1, &ctx.m_base_color_ssbo);
+#ifdef DAG_COLORS
+	glDeleteBuffers(1, &ctx.m_base_color_ssbo);
+#endif
 	glDeleteBuffers(1, &ctx.m_dummy_fbo);
 }
 }  // namespace voxelizer

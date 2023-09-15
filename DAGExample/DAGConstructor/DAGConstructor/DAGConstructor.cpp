@@ -63,17 +63,16 @@ std::optional<dag::DAG> DAGConstructor::generate_DAG(GetVoxelFunction get_voxels
 		if (voxels.count > 0) {
 			total_count += voxels.count;
 			cuda_builder->upload_path(voxels.positions, voxels.count);
-			//cuda_builder->upload_colors()
+#ifdef DAG_COLORS
+			cuda_builder->upload_colors(voxels.base_color, voxels.count);
+#endif
 			dags[i] = cuda_builder->build_dag(voxels.count, LevelsExcluding64BitLeafs, aabb);
 		}
 	}
 	const auto DAGTimeDone = std::chrono::high_resolution_clock::now();
 	std::cout << "done.\n";
 	std::cout << "Total voxels: " << total_count << "\n";
-#if 0
-	cudaProfilerStop();
-	exit(0);
-#endif
+
 
 	// The way the sub volumes are split, is in a morton order.
 	// 8 consecutive volumes hence compose a larger super volume.

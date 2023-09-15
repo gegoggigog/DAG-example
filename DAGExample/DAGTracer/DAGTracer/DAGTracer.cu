@@ -63,14 +63,18 @@ void upload_to_gpu(dag::DAG &dag)
 	}
 
 	if (dag.d_data)            { cudaFree(dag.d_data);            dag.d_data            = nullptr;}
-	//if (dag.d_color_data)      { cudaFree(dag.d_color_data);      dag.d_color_data      = nullptr;}
+#ifdef DAG_COLORS
+	if (dag.d_color_data)      { cudaFree(dag.d_color_data);      dag.d_color_data      = nullptr;}
+#endif
 	if (dag.d_enclosed_leaves) { cudaFree(dag.d_enclosed_leaves); dag.d_enclosed_leaves = nullptr;}
 
 	cudaMalloc(&dag.d_data, dag_array.size() * sizeof(uint32_t));
 	cudaMemcpy(dag.d_data,  dag_array.data(), dag_array.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
 
-	// cudaMalloc(&dag.d_color_data, dag.m_base_colors.size() * sizeof(uint32_t));
-	// cudaMemcpy(dag.d_color_data, dag.m_base_colors.data(), dag.m_base_colors.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
+#ifdef DAG_COLORS
+	cudaMalloc(&dag.d_color_data, dag.m_base_colors.size() * sizeof(uint32_t));
+	cudaMemcpy(dag.d_color_data, dag.m_base_colors.data(), dag.m_base_colors.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
+#endif
 
 	if (dag.m_enclosed_leaves.size() != 0){
 		cudaMalloc(&dag.d_enclosed_leaves, dag.m_enclosed_leaves.size() * sizeof(uint64_t));
@@ -527,7 +531,9 @@ color_lookup_kernel_morton(
 	int nof_levels, 
 	cudaSurfaceObject_t path_buffer,
 	uint32_t *dag, 
-	// uint32_t *dag_color, 
+#ifdef DAG_COLORS
+	uint32_t *dag_color, 
+#endif
 	uint64_t *enclosed_leaves,
 	uint32_t nof_top_levels, 
 	cudaSurfaceObject_t output_image,
@@ -546,10 +552,11 @@ color_lookup_kernel_morton(
 
 	uint32_t color = 0x0000FF;
 	uint3 path = make_uint3(surf2Dread<uint4>(path_buffer, coord.x * sizeof(uint4), coord.y));
-	color = float3_to_rgb888(make_float3(path.x & 0xFF, path.y & 0xFF, path.z & 0xFF) / make_float3(0xFF));
 	uint64_t nof_leaves = 0;
 	uint64_t final_color_idx = 0;
-#if 0
+#ifndef DAG_COLORS
+	color = float3_to_rgb888(make_float3(path.x & 0xFF, path.y & 0xFF, path.z & 0xFF) / make_float3(0xFF));
+#else
 	if (path != make_uint3(0, 0, 0)) {
 		uint32_t level = 0;
 		uint32_t node_index = 0;
@@ -919,7 +926,9 @@ void DAGTracer::resolve_colors(const dag::DAG &dag, int color_lookup_level)
 			dag.nofGeometryLevels(),
 			m_path_buffer.m_cuda_surface_object,
 			dag.d_data,
-			// dag.d_color_data,
+#ifdef DAG_COLORS
+			dag.d_color_data,
+#endif
 			dag.d_enclosed_leaves,
 			dag.m_top_levels,
 			m_color_buffer.m_cuda_surface_object,
