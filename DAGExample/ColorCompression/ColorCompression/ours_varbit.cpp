@@ -1211,7 +1211,7 @@ namespace ours_varbit {
   }
 
   OursData
-    compressColors_alternative_par(
+    compressColors(
       disc_vector<uint32_t>&& original_colors,
       const float error_treshold,
       const ColorLayout layout

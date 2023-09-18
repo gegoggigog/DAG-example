@@ -26,7 +26,7 @@ namespace ours_varbit {
     uint64_t bytes_compressed;
   };
 
-  OursData compressColors_alternative_par(
+  OursData compressColors(
     disc_vector<uint32_t> &&original_colors,
     const float error_threshold,
     const ColorLayout layout

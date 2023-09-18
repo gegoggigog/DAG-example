@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
 		else
 		{
 			disc_vector<uint32_t> da{ raw_color_file, macro_block_size };
-			compressed_color = ours_varbit::compressColors_alternative_par(std::move(da), 0.05f, ours_varbit::ColorLayout::RGB_5_6_5);
+			compressed_color = ours_varbit::compressColors(std::move(da), 0.05f, ours_varbit::ColorLayout::RGB_5_6_5);
 			cerealization::bin::save(compressed_color, compressed_color_file);
 		}
 		if (!load_cached && 0)
@@ -174,7 +174,7 @@ int main(int argc, char* argv[]) {
 #endif
 		write_vector_to_disc(raw_color_file, dag->m_base_colors);
 		disc_vector<uint32_t> da{ raw_color_file, macro_block_size };
-		compressed_color = ours_varbit::compressColors_alternative_par(std::move(da), 0.05f, ColorLayout::RGB_5_6_5);
+		compressed_color = ours_varbit::compressColors(std::move(da), 0.05f, ColorLayout::RGB_5_6_5);
 		ours_varbit::upload_to_gpu(compressed_color);
 
 		DAGTracer dag_tracer;
