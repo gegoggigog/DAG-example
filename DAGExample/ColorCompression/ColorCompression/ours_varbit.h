@@ -7,10 +7,6 @@
 constexpr uint64_t macro_block_size = 16ull * 1024ull;
 namespace ours_varbit {
   struct OursData {
-    uint32_t *d_block_headers = nullptr;
-    uint8_t *d_block_colors = nullptr;
-    uint32_t *d_weights = nullptr;
-    uint64_t *d_macro_w_offset = nullptr;
     uint64_t nof_blocks;
     uint64_t nof_colors;
     ColorLayout color_layout;
@@ -43,6 +39,4 @@ namespace ours_varbit {
   );
 
   float getPSNR(float mse);
-
-  void upload_to_gpu(OursData &data);
 };  // namespace ours_varbit

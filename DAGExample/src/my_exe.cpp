@@ -51,6 +51,43 @@ static void write_vector_to_disc(const std::string file, const std::vector<T>& v
 	else throw "Failed to open file";
 }
 
+// NOTE: "T* &d_vec" - We do **not** want a copy of the pointer.
+template<typename T>
+void upload_vector(const std::vector<T>& h_vec, T*& d_vec) {
+	const size_t count = h_vec.size() * sizeof(T);
+	cudaMallocManaged(&d_vec, count);
+
+	printf("Allocating %zu things (%fMiB)\n", h_vec.size(), h_vec.size() * sizeof(T) / double(1 << 20));
+	cudaMemcpy(d_vec, h_vec.data(), count, cudaMemcpyHostToDevice);
+}
+
+// NOTE: "T* &d_vec" - We do **not** want a copy of the pointer.
+template<typename T>
+void free_and_clear_cudaptr(T*& ptr) {
+	if (ptr) {
+		cudaFree(ptr);
+		ptr = nullptr;
+	}
+}
+
+void free_gpu(ColorData* dst) {
+	free_and_clear_cudaptr(dst->d_block_headers);
+	free_and_clear_cudaptr(dst->d_block_colors);
+	free_and_clear_cudaptr(dst->d_weights);
+	free_and_clear_cudaptr(dst->d_macro_w_offset);
+}
+
+void upload_to_gpu(const ours_varbit::OursData& src, ColorData *dst) {
+	free_gpu(dst);
+	upload_vector(src.h_block_headers,  dst->d_block_headers);
+	upload_vector(src.h_block_colors,   dst->d_block_colors);
+	upload_vector(src.h_weights,        dst->d_weights);
+	upload_vector(src.h_macro_w_offset, dst->d_macro_w_offset);
+	dst->nof_blocks = src.nof_blocks;
+	dst->nof_colors = src.nof_colors;
+}
+
+
 static void error_callback(int error, const char* description)
 {
 	std::cerr << "Error<" << error << ">: " << description << '\n';
@@ -173,22 +210,12 @@ int main(int argc, char* argv[]) {
 	}
 #endif
 		write_vector_to_disc(raw_color_file, dag->m_base_colors);
-		disc_vector<uint32_t> da{ raw_color_file, macro_block_size };
-		compressed_color = ours_varbit::compressColors(std::move(da), 0.05f, ColorLayout::RGB_5_6_5);
-		ours_varbit::upload_to_gpu(compressed_color);
+		compressed_color = ours_varbit::compressColors(disc_vector<uint32_t>{ raw_color_file, macro_block_size }, 0.05f, ColorLayout::RGB_5_6_5);
 
 		DAGTracer dag_tracer;
 		dag_tracer.resize(screen_dim.x, screen_dim.y);
 
-		ColorData tmp;
-		tmp.nof_blocks       = compressed_color.nof_blocks;
-		tmp.nof_colors       = compressed_color.nof_colors;
-		tmp.d_block_colors   = compressed_color.d_block_colors;
-		tmp.d_block_headers  = compressed_color.d_block_headers;
-		tmp.d_macro_w_offset = compressed_color.d_macro_w_offset;
-		tmp.d_weights        = compressed_color.d_weights;
-
-		dag_tracer.m_compressed_colors = tmp;
+		upload_to_gpu(compressed_color, &dag_tracer.m_compressed_colors);
 		upload_to_gpu(*dag);
 
 		while (!glfwWindowShouldClose(window))

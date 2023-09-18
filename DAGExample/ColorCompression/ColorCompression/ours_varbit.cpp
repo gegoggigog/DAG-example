@@ -1262,27 +1262,4 @@ namespace ours_varbit {
     printCompressionResults(nfo, result);
     return result;
   }
-
-  void upload_to_gpu(OursData &ours_dat)
-  {
-    // NOTE: "auto*& d_vec" - We do **not** want a copy of the pointer.
-    auto upload_vector = [](const auto& h_vec, auto*& d_vec)
-    {
-      using T = typename decay<decltype(h_vec)>::type::value_type;
-      if (d_vec)
-      {
-        cudaFree(d_vec);
-        d_vec = nullptr;
-      }
-      const size_t count = h_vec.size() * sizeof(T);
-      cudaMallocManaged((void**)&d_vec, count);
-
-    printf("Allocating %zu things (%fMB)\n", h_vec.size(), h_vec.size()  * sizeof(T) / double(1 << 20));
-      cudaMemcpy(d_vec, h_vec.data(), count, cudaMemcpyHostToDevice);
-    };
-    upload_vector(ours_dat.h_block_headers, ours_dat.d_block_headers);
-    upload_vector(ours_dat.h_block_colors, ours_dat.d_block_colors);
-    upload_vector(ours_dat.h_weights, ours_dat.d_weights);
-    upload_vector(ours_dat.h_macro_w_offset, ours_dat.d_macro_w_offset);
-  }
 } // namespace ours_varbit
