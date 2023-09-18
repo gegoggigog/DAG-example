@@ -143,92 +143,44 @@ int main(int argc, char* argv[]) {
 	std::cout << "Resolution: " << dag_resolution << std::endl;
 
 	auto dag = DAG_from_scene(dag_resolution, R"(C:\Users\dan\garbage_collector\DAG_Compression\assets\Sponza\glTF\)", "Sponza.gltf");
-	if (!dag)
-	{
+	if (!dag) {
 		std::cerr << "Could not construct dag, assert file path.";
 		exit(-1);
 	}
-#if 0
-		if (!load_cached)
-		{
-			cerealization::bin::save(*dag, dag_file);
-			//cerealization::bin::save_vec(dag->m_base_colors, R"(cache\colors.bin)");
-			write_to_disc(raw_color_file, dag->m_base_colors);
-		}
 
-		if (load_compressed)
-		{
-			compressed_color = cerealization::bin::load<ours_varbit::OursData>(compressed_color_file);
-		}
-		else
-		{
-			disc_vector<uint32_t> da{ raw_color_file, macro_block_size };
-			compressed_color = ours_varbit::compressColors(std::move(da), 0.05f, ours_varbit::ColorLayout::RGB_5_6_5);
-			cerealization::bin::save(compressed_color, compressed_color_file);
-		}
-		if (!load_cached && 0)
-		{
-			FileWriter writer("cache/result.basic_dag.uncompressed_colors.bin");
-			writer.write(dag->m_top_levels);
-			writer.write(dag->m_enclosed_leaves);
-			writer.write(dag->m_base_colors);
-			printf("wrote uncompressed colors\n");
-		}
-		{
-			FileWriter writer("cache/result.basic_dag.compressed_colors.variable.bin");
-			writer.write(dag->m_top_levels);
-			writer.write(dag->m_enclosed_leaves);
-			std::vector<uint64_t> blocks;
-			blocks.reserve(compressed_color.h_block_headers.size());
-			for (uint64_t index = 0; index < compressed_color.h_block_headers.size(); ++index)
-			{
-				uint64_t block = compressed_color.h_block_headers[index];
-				uint32_t colorbits = ((uint32_t*)compressed_color.h_block_colors.data())[index];
-				block |= uint64_t(colorbits) << 32;
-				blocks.push_back(block);
-			}
-			writer.write(compressed_color.h_weights);
-			writer.write(blocks);
-			writer.write(compressed_color.h_macro_w_offset);
-			printf("wrote compressed colors\n");
-		}
+	write_vector_to_disc(raw_color_file, dag->m_base_colors);
+	ours_varbit::OursData compressed_color = ours_varbit::compressColors(disc_vector<uint32_t>{ raw_color_file, macro_block_size }, 0.05f, ColorLayout::RGB_5_6_5);
 
-		ours_varbit::upload_to_gpu(compressed_color);
+	DAGTracer dag_tracer;
+	dag_tracer.resize(screen_dim.x, screen_dim.y);
+
+	upload_to_gpu(compressed_color, &dag_tracer.m_compressed_colors);
+	upload_to_gpu(*dag);
+
+	while (!glfwWindowShouldClose(window))
+	{
+		app.frame_timer.start();
+		app.handle_events();
+
+
+		const int color_lookup_lvl = dag->nofGeometryLevels();
+		dag_tracer.resolve_paths(*dag, app.camera, color_lookup_lvl);
+		dag_tracer.resolve_colors(*dag, color_lookup_lvl);
+
+		glViewport(0, 0, screen_dim.x, screen_dim.y);
+		glUseProgram(copy_shader);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, dag_tracer.m_color_buffer.m_gl_idx);
+		glUniform1i(renderbuffer_uniform, 0);
+		glActiveTexture(GL_TEXTURE0);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+
+		glfwSwapBuffers(window);
+		app.frame_timer.end();
 	}
-#endif
-		write_vector_to_disc(raw_color_file, dag->m_base_colors);
-		ours_varbit::OursData compressed_color = ours_varbit::compressColors(disc_vector<uint32_t>{ raw_color_file, macro_block_size }, 0.05f, ColorLayout::RGB_5_6_5);
 
-		DAGTracer dag_tracer;
-		dag_tracer.resize(screen_dim.x, screen_dim.y);
-
-		upload_to_gpu(compressed_color, &dag_tracer.m_compressed_colors);
-		upload_to_gpu(*dag);
-
-		while (!glfwWindowShouldClose(window))
-		{
-			app.frame_timer.start();
-			app.handle_events();
-
-
-			const int color_lookup_lvl = dag->nofGeometryLevels();
-			dag_tracer.resolve_paths(*dag, app.camera, color_lookup_lvl);
-			dag_tracer.resolve_colors(*dag, color_lookup_lvl);
-
-			glViewport(0, 0, screen_dim.x, screen_dim.y);
-			glUseProgram(copy_shader);
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, dag_tracer.m_color_buffer.m_gl_idx);
-			glUniform1i(renderbuffer_uniform, 0);
-			glActiveTexture(GL_TEXTURE0);
-			glDrawArrays(GL_TRIANGLES, 0, 3);
-
-			glfwSwapBuffers(window);
-			app.frame_timer.end();
-		}
-
-		glfwDestroyWindow(window);
-		glfwTerminate();
+	glfwDestroyWindow(window);
+	glfwTerminate();
 	return EXIT_SUCCESS;
 }
 
