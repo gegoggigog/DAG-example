@@ -12,7 +12,6 @@ float3* g_dev_colors = nullptr;
 uint8_t* g_dev_weights = nullptr;
 size_t g_numColors = 0;
 
-#include <csignal>
 
 float __device__ rand_lut[64] = {
   0.9486982, 0.972871958, 0.248168957, 0.493126931, 0.738212088, 0.653544012, 0.67056634, 0.204192427,
