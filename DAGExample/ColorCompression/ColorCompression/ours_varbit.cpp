@@ -650,39 +650,34 @@ namespace ours_varbit {
     nfo.wrong_colors.resize(max_bits_per_weight + 1, 0);
     nfo.ok_colors.resize(max_bits_per_weight + 1, 0);
 
-    const size_t n_colors = original_colors_ref.size();
-	auto result = (n_colors + macro_block_size - 1) / macro_block_size;
-	assert(result < std::numeric_limits<int>::max());
-	const int nof_parts = int(result);
+    const std::size_t n_colors = original_colors_ref.size();
+	const std::size_t n_parts  = (n_colors + macro_block_size - 1) / macro_block_size;
+	assert(n_parts < std::numeric_limits<int>::max());
 
     size_t global_bptr = 0;
     size_t macro_w_bptr = 0;
 
     const auto startTime = std::chrono::high_resolution_clock::now();
-    for (int part = 0; part < nof_parts; part++)
+    for (std::size_t part_idx = 0; part_idx < n_parts; part_idx++)
     {
-        printProgression(part, nof_parts, h_block_headers.size(), startTime);
-      const size_t part_size = (part == nof_parts - 1) ?
-          (n_colors % macro_block_size) : macro_block_size;
+        printProgression(part_idx, n_parts, h_block_headers.size(), startTime);
+        const bool final_part = (part_idx + 1 == n_parts);
+        const size_t part_size = final_part ? (n_colors % macro_block_size) : macro_block_size;
 
-      const size_t part_start = part * macro_block_size;
-      const vector<end_block> solution = compress_range(part_start, part_size);
-      double max_error_eval =
-        add_to_final(
-          solution,
-          global_bptr,
-          macro_w_bptr,
-          nfo.wrong_colors,
-          nfo.ok_colors
-        );
+        const size_t part_start = part_idx * macro_block_size;
+        const vector<end_block> solution = compress_range(part_start, part_size);
+        double max_error_eval = add_to_final(solution,
+                                            global_bptr,
+                                            macro_w_bptr,
+                                            nfo.wrong_colors,
+                                            nfo.ok_colors);
 
-      // Info
-      for (const auto& b : solution)
-      {
-        nfo.total_bits += b.range * b.bpw + HEADER_COST + COLOR_COST;
-      }
-      nfo.nof_blocks += solution.size();
-      nfo.max_error = max(max_error_eval, nfo.max_error);
+        // Info
+        for (const auto& b : solution) {
+            nfo.total_bits += b.range * b.bpw + HEADER_COST + COLOR_COST;
+        }
+        nfo.nof_blocks += solution.size();
+        nfo.max_error = max(max_error_eval, nfo.max_error);
     }
 
     const size_t weight_container_size = (global_bptr + 31) / 32;
