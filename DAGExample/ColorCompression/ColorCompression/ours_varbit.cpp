@@ -206,18 +206,18 @@ namespace ours_varbit {
     //uint64_t ours_nof_colors = colors.size();
     //auto getNextColor = [&]() {
     //  const uint32_t colors_per_macro_block = 16 * 1024;
-    //  size_t macro_block_idx = color_idx / colors_per_macro_block;
+    //  size_t mb_idx = color_idx / colors_per_macro_block;
     //  size_t local_color_idx = color_idx % colors_per_macro_block;
 
-    //  uint32_t block_idx_macro = macro_block_offset[2 * macro_block_idx + 0];
-    //  uint64_t w_bptr_macro = macro_block_offset[2 * macro_block_idx + 1];
+    //  uint32_t block_idx_macro = macro_block_offset[2 * mb_idx + 0];
+    //  uint64_t w_bptr_macro = macro_block_offset[2 * mb_idx + 1];
     //  uint32_t block_idx_macro_upper = ours_nof_block_headers - 1;
     //  uint32_t macro_block_count =
     //    (ours_nof_colors + colors_per_macro_block - 1) / colors_per_macro_block;
 
-    //  if (macro_block_idx < macro_block_count - 1)
+    //  if (mb_idx < macro_block_count - 1)
     //    block_idx_macro_upper =
-    //      macro_block_offset[2ull * macro_block_idx + 2] - 1;
+    //      macro_block_offset[2ull * mb_idx + 2] - 1;
 
     //  ///////////////////////////////////////////////////////////////////////////
     //  // Binary search through headers to find the block containing my node
@@ -651,37 +651,46 @@ namespace ours_varbit {
     nfo.ok_colors.resize(max_bits_per_weight + 1, 0);
 
     const std::size_t n_colors = original_colors_ref.size();
-	const std::size_t n_parts  = (n_colors + macro_block_size - 1) / macro_block_size;
-	assert(n_parts < std::numeric_limits<int>::max());
+	const std::size_t n_mb  = (n_colors + macro_block_size - 1) / macro_block_size;
 
     size_t global_bptr = 0;
     size_t macro_w_bptr = 0;
+    size_t n_blocks = 0;
 
     const auto startTime = std::chrono::high_resolution_clock::now();
-    for (std::size_t part_idx = 0; part_idx < n_parts; part_idx++)
+    for (std::size_t mb_idx = 0; mb_idx < n_mb; mb_idx++)
     {
-        printProgression(part_idx, n_parts, h_block_headers.size(), startTime);
-        const bool final_part = (part_idx + 1 == n_parts);
-        const size_t part_size = final_part ? (n_colors % macro_block_size) : macro_block_size;
-
-        const size_t part_start = part_idx * macro_block_size;
-        const vector<end_block> solution = compress_range(part_start, part_size);
+        printProgression(mb_idx, n_mb, h_block_headers.size(), startTime);
+        const bool is_last_mb = (mb_idx + 1 == n_mb);
+        const size_t current_mb_size = is_last_mb ? (n_colors % macro_block_size) : macro_block_size;
+        const size_t mb_start = mb_idx * macro_block_size;
+        const vector<end_block> solution = compress_range(mb_start, current_mb_size);
         double max_error_eval = add_to_final(solution,
                                             global_bptr,
                                             macro_w_bptr,
                                             nfo.wrong_colors,
                                             nfo.ok_colors);
+        n_blocks += solution.size();
 
         // Info
         for (const auto& b : solution) {
             nfo.total_bits += b.range * b.bpw + HEADER_COST + COLOR_COST;
         }
-        nfo.nof_blocks += solution.size();
         nfo.max_error = max(max_error_eval, nfo.max_error);
     }
 
     const size_t weight_container_size = (global_bptr + 31) / 32;
     h_weights.resize(weight_container_size);
+    // Write essential result
+    ours_dat.nof_blocks       = n_blocks;
+    ours_dat.nof_colors       = n_colors;
+    ours_dat.h_block_headers  = h_block_headers;
+    ours_dat.h_block_colors   = h_block_colors;
+    ours_dat.h_weights        = h_weights;
+    ours_dat.h_macro_w_offset = h_macro_block_headers;
+    ours_dat.color_layout     = compression_layout;
+
+    // Write optional info
     nfo.weights_size = weight_container_size * sizeof(uint32_t);
     nfo.macro_header_size = h_macro_block_headers.size() * sizeof(uint64_t);
     nfo.headers_size = h_block_headers.size() * sizeof(uint32_t);
@@ -690,26 +699,11 @@ namespace ours_varbit {
                               compression_layout == RG_8_8 ? 2 :
                               compression_layout == R_8 ? 1 : 1;
     nfo.error_threshold = error_treshold;
+    nfo.nof_blocks = n_blocks;
     nfo.nof_colors = n_colors;
     nfo.bytes_raw = n_colors * n_channels;
     nfo.bytes_compressed = nfo.headers_size + nfo.colors_size + nfo.weights_size + nfo.macro_header_size;
     nfo.compression = static_cast<double>(nfo.bytes_compressed) / static_cast<double>(nfo.bytes_raw);
-
-
-    ours_dat.nof_blocks = nfo.nof_blocks;
-    ours_dat.nof_colors = n_colors;
-
-    ours_dat.h_block_headers = h_block_headers;
-    ours_dat.h_block_colors = h_block_colors;
-
-    if (nfo.weights_size != 0)
-    {
-      ours_dat.h_weights = h_weights;
-    }
-
-    ours_dat.h_macro_w_offset = h_macro_block_headers;
-    ours_dat.color_layout = compression_layout;
-
     return { nfo, ours_dat };
   }
 
