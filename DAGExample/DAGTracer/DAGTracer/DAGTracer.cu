@@ -832,19 +832,14 @@ color_lookup_kernel_morton(
 	surf2Dwrite(color, output_image, (int)sizeof(uint32_t)*coord.x, coord.y, cudaBoundaryModeClamp);
 }
 
-
-///////////////////////////////////////////////////////////////////////////////
 // Trace primary rays
-///////////////////////////////////////////////////////////////////////////////
 struct render_param {
 	glm::vec3 camera_pos;
 	glm::vec3 p_bottom_left;
 	double3 d_dx;
 	double3 d_dy;
 	render_param(const chag::view &camera, const dag::DAG &dag, uint32_t w, uint32_t h) {
-		///////////////////////////////////////////////////////////////////////////
 		// Calculate the camera position and three points spanning the near quad
-		///////////////////////////////////////////////////////////////////////////
 		camera_pos                   = camera.pos;
 		glm::vec3 camera_dir         = -camera.R[2];
 		glm::vec3 camera_up          = camera.R[1];
@@ -858,9 +853,7 @@ struct render_param {
 		glm::vec3 p_top_left         = camera_pos + Z + Y - X;
 		glm::vec3 p_bottom_right     = camera_pos + Z - Y + X;
 
-		///////////////////////////////////////////////////////////////////////////
 		// Transform these points into "DAG" space and generate pixel dx/dy
-		///////////////////////////////////////////////////////////////////////////
 		const glm::vec3 aabb_min    = glm::make_vec3(dag.aabb_min.data());
 		const glm::vec3 aabb_max    = glm::make_vec3(dag.aabb_max.data());
 		const glm::vec3 aabb_size   = aabb_max - aabb_min;
@@ -885,9 +878,7 @@ void DAGTracer::resolve_paths(const dag::DAG &dag, const chag::view & camera, in
 	m_path_buffer.mapSurfaceObject();
 	m_depth_buffer.mapSurfaceObject();
 
-		auto to_float3 = [](const glm::vec3 &v){
-				return make_float3(v.x, v.y, v.z);
-		};
+	auto to_float3 = [](const glm::vec3 &v){ return make_float3(v.x, v.y, v.z); };
 
 	render_param rp(camera, dag, m_width, m_height);
 

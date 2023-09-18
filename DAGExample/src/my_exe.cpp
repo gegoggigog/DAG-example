@@ -142,20 +142,7 @@ int main(int argc, char* argv[]) {
 	constexpr int dag_resolution{ 1 << 8 };
 	std::cout << "Resolution: " << dag_resolution << std::endl;
 
-	std::optional<dag::DAG> dag;
-	ours_varbit::OursData compressed_color;
-
-	if (load_cached)
-	{
-		dag = cerealization::bin::load<dag::DAG>(dag_file);
-	}
-	else
-	{
-	    //dag = DAG_from_scene(dag_resolution, R"(assets/Sponza/glTF/)", "Sponza.gltf");
-		dag = DAG_from_scene(dag_resolution, R"(C:\Users\dan\garbage_collector\DAG_Compression\assets\Sponza\glTF\)", "Sponza.gltf");
-		//dag = DAG_from_scene(dag_resolution, R"(assets/EpicCitadel/glTF/)", "EpicCitadel.gltf");
-		//dag = DAG_from_scene(dag_resolution, R"(assets/SanMiguel/)", "san-miguel-low-poly.gltf");
-	}
+	auto dag = DAG_from_scene(dag_resolution, R"(C:\Users\dan\garbage_collector\DAG_Compression\assets\Sponza\glTF\)", "Sponza.gltf");
 	if (!dag)
 	{
 		std::cerr << "Could not construct dag, assert file path.";
@@ -210,7 +197,7 @@ int main(int argc, char* argv[]) {
 	}
 #endif
 		write_vector_to_disc(raw_color_file, dag->m_base_colors);
-		compressed_color = ours_varbit::compressColors(disc_vector<uint32_t>{ raw_color_file, macro_block_size }, 0.05f, ColorLayout::RGB_5_6_5);
+		ours_varbit::OursData compressed_color = ours_varbit::compressColors(disc_vector<uint32_t>{ raw_color_file, macro_block_size }, 0.05f, ColorLayout::RGB_5_6_5);
 
 		DAGTracer dag_tracer;
 		dag_tracer.resize(screen_dim.x, screen_dim.y);
