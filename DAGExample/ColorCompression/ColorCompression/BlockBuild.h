@@ -22,16 +22,14 @@ struct BlockBuild {
 };
 
 void uploadColors(const std::vector<float3> &colors);
-void scores_gpu(
-	const std::vector<BlockBuild> &blocks,
-	std::vector<float> &scores,
-	std::vector<uint8_t> &weights,
-	std::vector<float3> &colorRanges,
-	float error_treshold,
-	bool minmaxcorrection,
-	bool laberr,
-	ColorLayout layout,
-	int K,
-	bool finalEval = false
-);
+void scores_gpu(const std::vector<BlockBuild> &blocks,
+				std::vector<float> &scores,
+				std::vector<uint8_t> &weights,
+				std::vector<float3> &colorRanges,
+				float error_treshold,
+				bool minmaxcorrection,
+				bool laberr,
+				ColorLayout layout,
+				int K,
+				bool finalEval = false);
 #endif  // BLOCK_BUILD_H

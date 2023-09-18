@@ -8,6 +8,12 @@
 #include <cfloat>
 #include "BlockBuild.h"
 
+float3* g_dev_colors = nullptr;
+uint8_t* g_dev_weights = nullptr;
+size_t g_numColors = 0;
+
+#include <csignal>
+
 float __device__ rand_lut[64] = {
   0.9486982, 0.972871958, 0.248168957, 0.493126931, 0.738212088, 0.653544012, 0.67056634, 0.204192427,
   0.972804412, 0.991614247, 0.907730512, 0.826491797, 0.79865054, 0.94179941, 0.867766025, 0.280207877,
@@ -145,7 +151,7 @@ template<class T> __host__ __device__ T max(const T &a, const T &b) { return a >
 template<class T> __host__ __device__ T clamp(const T &val, const T &minVal, const T &maxVal) { return min(max(minVal, val), maxVal); }
 // clang-format on
 
-template<class T> __host__ __device__ inline T compensatedSum(T val, T &sum, T &error) {
+template<class T> __host__ __device__ inline T compensatedSum(const T &val, T &sum, T &error) {
   T y = val - error;
   T t = sum + y;
   error = (t - sum) - y;
@@ -331,9 +337,7 @@ __device__ float3 minmaxSingleCorrectedColor(const float3 &c, ColorLayout layout
 }
 // clang-format on
 
-///////////////////////////////////////////////////////////////////////
 // Get the "error" between two colors. Should be perceptually sane. 
-///////////////////////////////////////////////////////////////////////
 __device__ inline
 float3 minmax_correctred(const float3 &c)
 {
@@ -404,21 +408,18 @@ __device__ inline float3x3 warpSum(float3x3 m) {
 }
 
 template<bool minmaxcorrection, bool laberr>
-__global__ void scorefunction_gpu_warp(
-  size_t numColors,
-  size_t numBlocks,
-  const float3 * colors,
-  const BlockBuild * blocks,
-  float * scores,
-  uint8_t * weights,
-  float3 * colorRanges,
-  float error_treshold,
-  ColorLayout layout,
-  int K,
-  int * globalJobQueue,
-  bool finalEval = false
-)
-{
+__global__ void scorefunction_gpu_warp(size_t numColors,
+                                       size_t numBlocks,
+                                       const float3 * colors,
+                                       const BlockBuild * blocks,
+                                       float * scores,
+                                       uint8_t * weights,
+                                       float3 * colorRanges,
+                                       float error_treshold,
+                                       ColorLayout layout,
+                                       int K,
+                                       int * globalJobQueue,
+                                       bool finalEval = false) {
   int laneId = threadIdx.x & 31;
 
   int jobId = INT32_MAX;
@@ -682,12 +683,6 @@ __global__ void scorefunction_gpu_warp(
     jobId = __shfl_sync(FULL_MASK, jobId, 0);
   }// ~while(jobId >= 0)
 }// ~scorefunction_gpu_warp
-
-float3 * g_dev_colors = nullptr;
-uint8_t * g_dev_weights = nullptr;
-size_t g_numColors = 0;
-
-#include <csignal>
 
 void uploadColors(const std::vector<float3> &colors)
 {
