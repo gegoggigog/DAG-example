@@ -36,7 +36,7 @@ struct AppState {
 	bool loop = true;
 	Timer frame_timer;
 	GLFWwindow* window = nullptr;
-	void handle_events() {
+	inline void handle_events() {
 		glfwPollEvents();
 		const float dt = frame_timer.dt_seconds();
 		const float move_scale_factor{ 1000.0f * dt };

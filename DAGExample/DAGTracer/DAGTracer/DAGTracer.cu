@@ -893,7 +893,7 @@ void DAGTracer::resolve_paths(const dag::DAG &dag, const chag::view & camera, in
 
 	dim3 block_dim = dim3(8, 32);
 	dim3 grid_dim = dim3(m_width / block_dim.x + 1, m_height / block_dim.y + 1);
-	primary_rays_kernel <<<grid_dim, block_dim >>>(
+	primary_rays_kernel <<< grid_dim, block_dim >>>(
 		m_width,
 		m_height,
 		to_float3(rp.camera_pos),
@@ -920,7 +920,7 @@ void DAGTracer::resolve_colors(const dag::DAG &dag, int color_lookup_level)
 	m_path_buffer.mapSurfaceObject();
 	dim3 block_dim = dim3(8, 32);
 	dim3 grid_dim = dim3(m_width / block_dim.x + 1, m_height / block_dim.y + 1);
-	color_lookup_kernel_morton << <grid_dim, block_dim >> >(
+	color_lookup_kernel_morton<<< grid_dim, block_dim >>>(
 			m_width,
 			m_height,
 			dag.nofGeometryLevels(),
