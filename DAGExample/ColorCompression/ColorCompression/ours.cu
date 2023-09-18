@@ -345,8 +345,9 @@ float3 minmax_correctred(const float3 &c)
   return rgb888_to_float3(float3_to_rgb888(c));
 }
 
+template<bool minmax_correction>
 __device__ inline
-float getErrorSquared(const float3 & c1, const float3 & c2, bool minmax_correction)
+float getErrorSquared(const float3 & c1, const float3 & c2)
 {
   const float3 err_vec = minmax_correction ?
     minmax_correctred(c1) - minmax_correctred(c2) :
@@ -357,10 +358,11 @@ float getErrorSquared(const float3 & c1, const float3 & c2, bool minmax_correcti
     err_vec.z * err_vec.z;
 };
 
+template<bool minmax_correction>
 __device__ inline
-float getError(const float3 & c1, const float3 & c2, bool minmax_correction)
+float getError(const float3 & c1, const float3 & c2)
 {
-  return sqrt(getErrorSquared(c1, c2, minmax_correction));
+  return sqrt(getErrorSquared<minmax_correction>(c1, c2));
 };
 
 
@@ -581,16 +583,16 @@ __global__ void scorefunction_gpu_warp(size_t numColors,
     {
       if (range == 1)
       {
-        if (getError(minpoint, colors[start], minmaxcorrection) > error_treshold ||
-            getError(maxpoint, colors[start], minmaxcorrection) > error_treshold)
+        if (getError<minmaxcorrection>(minpoint, colors[start]) > error_treshold ||
+            getError<minmaxcorrection>(maxpoint, colors[start]) > error_treshold)
         {
           bEval = false;
         }
       }
       else if (range == 2)
       {
-        if (getError(minpoint, colors[start], minmaxcorrection) > error_treshold ||
-            getError(maxpoint, colors[start + 1], minmaxcorrection) > error_treshold)
+        if (getError<minmaxcorrection>(minpoint, colors[start]) > error_treshold ||
+            getError<minmaxcorrection>(maxpoint, colors[start + 1]) > error_treshold)
         {
           bEval = false;
         }
@@ -615,8 +617,8 @@ __global__ void scorefunction_gpu_warp(size_t numColors,
           float w = clamp(round(distance * float(K - 1)), 0.0f, float(K - 1));
           float3 interpolated_color = A + w / float(K - 1) * (B - A);
 
-          float error = getError(p, interpolated_color, minmaxcorrection);
-          msesum += getErrorSquared(p, interpolated_color, minmaxcorrection);
+          float error = getError<minmaxcorrection>(p, interpolated_color);
+          msesum += getErrorSquared<minmaxcorrection>(p, interpolated_color);
 
           if (error > error_treshold)
           {
@@ -644,8 +646,8 @@ __global__ void scorefunction_gpu_warp(size_t numColors,
         const float3 & p = colors[i];
         float3 interpolated_color = minpoint;
 
-        float error = getError(p, interpolated_color, minmaxcorrection);
-        msesum += getErrorSquared(p, interpolated_color, minmaxcorrection);
+        float error = getError<minmaxcorrection>(p, interpolated_color);
+        msesum += getErrorSquared<minmaxcorrection>(p, interpolated_color);
         if (error > error_treshold)
         {
           bEval = false;
