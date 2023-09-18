@@ -11,13 +11,9 @@ namespace ours_varbit {
     uint64_t nof_colors;
     ColorLayout color_layout;
     std::vector<uint32_t> h_block_headers;
-    std::vector<uint8_t> h_block_colors;
+    std::vector<uint8_t>  h_block_colors;
     std::vector<uint32_t> h_weights;
     std::vector<uint64_t> h_macro_w_offset;
-    float compression;
-    float error_threshold;
-    uint64_t bytes_raw;
-    uint64_t bytes_compressed;
   };
 
   OursData compressColors(
