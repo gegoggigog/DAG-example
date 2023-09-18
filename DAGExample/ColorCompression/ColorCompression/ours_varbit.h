@@ -10,7 +10,6 @@ namespace ours_varbit {
     uint64_t nof_blocks;
     uint64_t nof_colors;
     ColorLayout color_layout;
-    bool use_single_color_blocks;
     std::vector<uint32_t> h_block_headers;
     std::vector<uint8_t> h_block_colors;
     std::vector<uint32_t> h_weights;

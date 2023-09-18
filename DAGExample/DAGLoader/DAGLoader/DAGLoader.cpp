@@ -45,7 +45,6 @@ namespace ours_varbit
       cereal::make_nvp("nof_blocks", data.nof_blocks),
       cereal::make_nvp("nof_colors", data.nof_colors),
       cereal::make_nvp("color_layout", data.color_layout),
-      cereal::make_nvp("use_single_color_blocks", data.use_single_color_blocks),
       cereal::make_nvp("block_headers", data.h_block_headers),
       cereal::make_nvp("block_colors", data.h_block_colors),
       cereal::make_nvp("weights", data.h_weights),

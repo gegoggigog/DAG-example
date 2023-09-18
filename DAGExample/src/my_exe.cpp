@@ -140,8 +140,8 @@ int main(int argc, char* argv[]) {
 	ZoneScoped;
 	
 	auto dag = [] {
-		constexpr int dag_resolution{ 1 << 8 };
-		std::cout << "Resolution: " << dag_resolution << std::endl;
+		constexpr int dag_resolution = 1 << 8;
+		std::cout << "Resolution: " << dag_resolution << '\n';
 		auto optional_dag = DAG_from_scene(dag_resolution, R"(C:\Users\dan\garbage_collector\DAG_Compression\assets\Sponza\glTF\)", "Sponza.gltf");
 		if (!optional_dag) {
 			std::cerr << "Could not construct dag, assert file path.";

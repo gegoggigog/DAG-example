@@ -688,7 +688,6 @@ namespace ours_varbit {
 
     ours_dat.nof_blocks = nfo.nof_blocks;
     ours_dat.nof_colors = n_colors;
-    ours_dat.use_single_color_blocks = false;
 
     ours_dat.h_block_headers = h_block_headers;
     ours_dat.h_block_colors = h_block_colors;
