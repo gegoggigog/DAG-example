@@ -50,38 +50,38 @@ namespace ours_varbit {
     const unsigned bits_per_weight = 4;
     const int K = 1 << bits_per_weight;
 
-    const int COLOR_COST = 16 + 16;
-    const int START_IDX_COST = 14;
+    int COLOR_COST      = 16 + 16;
+    const int START_IDX_COST  = 14;
     const int WEIGHT_IDX_COST = 16;
-    const int BPW_ID_COST = 2;
-    const int HEADER_COST = 32;
+    const int BPW_ID_COST     = 2;
+    const int HEADER_COST     = 32;
 
     explicit CompressionState(disc_vector<uint32_t>&& original_colors, const float error_treshold_, const ColorLayout layout)
       : original_colors_ref{ std::move(original_colors) }
       , error_treshold{ error_treshold_ }
       , compression_layout{ layout }
     {
-      const size_t n_colors = original_colors.size();
+      const size_t n_colors = original_colors_ref.size();
       const uint64_t bits_required = n_colors * bits_per_weight;
 
       switch (layout)
       {
       case ColorLayout::RGB_10_12_10:
       case ColorLayout::RG_16_16:
-        const_cast<int&>(COLOR_COST) = 32 + 32;
+        COLOR_COST = 32 + 32;
         break;
       case ColorLayout::RGB_8_8_8:
-        const_cast<int&>(COLOR_COST) = 24 + 24;
+        COLOR_COST = 24 + 24;
         break;
       case ColorLayout::RG_8_8:
       case ColorLayout::RGB_5_6_5:
       case ColorLayout::R_16:
-        const_cast<int&>(COLOR_COST) = 16 + 16;
+        COLOR_COST = 16 + 16;
         break;
       case ColorLayout::R_8:
-        const_cast<int&>(COLOR_COST) = 8 + 8;
+        COLOR_COST = 8 + 8;
       case ColorLayout::R_4:
-        const_cast<int&>(COLOR_COST) = 4 + 4;
+        COLOR_COST = 4 + 4;
         break;
       }
 
