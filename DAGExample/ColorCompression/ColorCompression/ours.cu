@@ -1,4 +1,3 @@
-#include "ours.h"
 #include "ours_varbit.h"
 #include <cuda.h>
 #include <device_launch_parameters.h>

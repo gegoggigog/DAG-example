@@ -42,6 +42,15 @@ const char* dag_file              = R"(cache/dag16k.bin)";
 const char* raw_color_file        = R"(raw16k.bin)";
 const char* compressed_color_file = R"(cache/compressed16k.bin)";
 
+template<typename T>
+static void write_vector_to_disc(const std::string file, const std::vector<T>& vec)
+{
+	if (auto ofs = std::ofstream{ file, std::ofstream::binary | std::ofstream::out }; ofs) {
+		ofs.write(reinterpret_cast<const char*>(vec.data()), vec.size() * sizeof(T));
+	}
+	else throw "Failed to open file";
+}
+
 static void error_callback(int error, const char* description)
 {
 	std::cerr << "Error<" << error << ">: " << description << '\n';
@@ -93,7 +102,7 @@ int main(int argc, char* argv[]) {
 
 	ZoneScoped;
 	
-	constexpr int dag_resolution{ 1 << 13 };
+	constexpr int dag_resolution{ 1 << 8 };
 	std::cout << "Resolution: " << dag_resolution << std::endl;
 
 	std::optional<dag::DAG> dag;
@@ -163,22 +172,23 @@ int main(int argc, char* argv[]) {
 		ours_varbit::upload_to_gpu(compressed_color);
 	}
 #endif
-		write_to_disc(raw_color_file, dag->m_base_colors);
+		write_vector_to_disc(raw_color_file, dag->m_base_colors);
 		disc_vector<uint32_t> da{ raw_color_file, macro_block_size };
-		compressed_color = ours_varbit::compressColors_alternative_par(std::move(da), 0.05f, ours_varbit::ColorLayout::RGB_5_6_5);
+		compressed_color = ours_varbit::compressColors_alternative_par(std::move(da), 0.05f, ColorLayout::RGB_5_6_5);
 		ours_varbit::upload_to_gpu(compressed_color);
 
 		DAGTracer dag_tracer;
 		dag_tracer.resize(screen_dim.x, screen_dim.y);
 
 		ColorData tmp;
-		tmp.bits_per_weight = compressed_color.bits_per_weight;
-		tmp.nof_blocks = compressed_color.nof_blocks;
-		tmp.nof_colors = compressed_color.nof_colors;
-		tmp.d_block_colors = compressed_color.d_block_colors;
-		tmp.d_block_headers = compressed_color.d_block_headers;
+		tmp.bits_per_weight  = compressed_color.bits_per_weight;
+		tmp.nof_blocks       = compressed_color.nof_blocks;
+		tmp.nof_colors       = compressed_color.nof_colors;
+		tmp.d_block_colors   = compressed_color.d_block_colors;
+		tmp.d_block_headers  = compressed_color.d_block_headers;
 		tmp.d_macro_w_offset = compressed_color.d_macro_w_offset;
-		tmp.d_weights = compressed_color.d_weights;
+		tmp.d_weights        = compressed_color.d_weights;
+
 		dag_tracer.m_compressed_colors = tmp;
 		upload_to_gpu(*dag);
 

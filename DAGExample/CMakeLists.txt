@@ -73,10 +73,8 @@ set_target_properties(DAGBuilder
 
 # Internal library ---- ColorCompression
 add_library(ColorCompression STATIC
-    ColorCompression/ColorCompression/ours.cpp
     ColorCompression/ColorCompression/ours.cu
     ColorCompression/ColorCompression/ours_varbit.cpp
-    ColorCompression/ColorCompression/svd.cpp
 )
 target_include_directories(ColorCompression PUBLIC ColorCompression)
 target_link_libraries(ColorCompression 
