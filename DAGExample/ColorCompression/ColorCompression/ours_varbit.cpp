@@ -142,8 +142,6 @@ namespace ours_varbit {
     ColorLayout compression_layout;
     const float error_treshold;
 
-    bool use_minmax_correction = true;
-
     disc_vector<uint32_t> original_colors_ref;
     vector<uint32_t> m_weights;
 
@@ -337,7 +335,7 @@ namespace ours_varbit {
 
   float CompressionState::getErrorSquared(const vec3& c1, const vec3& c2)
   {
-    const vec3 err_vec = use_minmax_correction ?
+    const vec3 err_vec = true ?
       minmax_correctred(c1) - minmax_correctred(c2) :
       c1 - c2;
     return
@@ -780,17 +778,13 @@ namespace ours_varbit {
         vector<float3> colorRanges(buildBlocks.size());
         static int pass = 0;
         vector<uint8_t> weights;
-        scores_gpu(
-          buildBlocks,
-          scores,
-          weights,
-          colorRanges,
-          error_treshold,
-          use_minmax_correction,
-          false,
-          compression_layout,
-          vals_per_weight
-        );
+        scores_gpu(buildBlocks,
+                   scores,
+                   weights,
+                   colorRanges,
+                   error_treshold,
+                   compression_layout,
+                   vals_per_weight);
 
         cudaError_t err = cudaGetLastError();
 		if( cudaSuccess != err ) {
@@ -889,18 +883,14 @@ namespace ours_varbit {
         vector<float> scores;
         vector<uint8_t> weights;
         vector<float3> colorRanges;
-        scores_gpu(
-          buildBlocks,
-          scores,
-          weights,
-          colorRanges,
-          error_treshold,
-          use_minmax_correction,
-          false,
-          compression_layout,
-          vals_per_weight,
-          true
-        );
+        scores_gpu(buildBlocks,
+                   scores,
+                   weights,
+                   colorRanges,
+                   error_treshold,
+                   compression_layout,
+                   vals_per_weight,
+                   true);
 
         // Insert the blocks into our block tree.
         for (size_t i = 0; i < buildBlocks.size(); i++)

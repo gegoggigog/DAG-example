@@ -290,15 +290,15 @@ __device__  uint32_t float3_to_rgb565(float3 c) {
 __device__ uint32_t float3_to_rgbxxx(float3 c, ColorLayout layout) {
   switch (layout)
   {
-  case R_4:          return float3_to_r4(c);
-  case R_8:          return float3_to_r8(c);
-  case R_16:         return float3_to_r16(c);
-  case RG_8_8:       return float3_to_rg88(c);
-  case RG_16_16:     return float3_to_rg1616(c);
-  case RGB_8_8_8:    return float3_to_rgb888(c);
-  case RGB_10_12_10: return float3_to_rgb101210(c);
-  case RGB_5_6_5:    return float3_to_rgb565(c);
-  default: break;
+      case R_4:          return float3_to_r4(c);
+      case R_8:          return float3_to_r8(c);
+      case R_16:         return float3_to_r16(c);
+      case RG_8_8:       return float3_to_rg88(c);
+      case RG_16_16:     return float3_to_rg1616(c);
+      case RGB_8_8_8:    return float3_to_rgb888(c);
+      case RGB_10_12_10: return float3_to_rgb101210(c);
+      case RGB_5_6_5:    return float3_to_rgb565(c);
+      default: break;
   }
   return 0;
 }
@@ -306,15 +306,15 @@ __device__ uint32_t float3_to_rgbxxx(float3 c, ColorLayout layout) {
 __device__ float3 rgbxxx_to_float3(uint32_t rgb, ColorLayout layout) {
   switch (layout)
   {
-  case R_4:          return r4_to_float3(rgb);
-  case R_8:          return r8_to_float3(rgb);
-  case R_16:         return r16_to_float3(rgb);
-  case RG_8_8:       return rg88_to_float3(rgb);
-  case RG_16_16:     return rg1616_to_float3(rgb);
-  case RGB_8_8_8:    return rgb888_to_float3(rgb);
-  case RGB_10_12_10: return rgb101210_to_float3(rgb);
-  case RGB_5_6_5:    return rgb565_to_float3(rgb);
-  default: break;
+      case R_4:          return r4_to_float3(rgb);
+      case R_8:          return r8_to_float3(rgb);
+      case R_16:         return r16_to_float3(rgb);
+      case RG_8_8:       return rg88_to_float3(rgb);
+      case RG_16_16:     return rg1616_to_float3(rgb);
+      case RGB_8_8_8:    return rgb888_to_float3(rgb);
+      case RGB_10_12_10: return rgb101210_to_float3(rgb);
+      case RGB_5_6_5:    return rgb565_to_float3(rgb);
+      default: break;
   }
   return make_float3(0.f, 0.f, 0.f);
 }
@@ -323,15 +323,16 @@ __device__ float3 minmaxCorrectedColor(const float3 &c, ColorLayout layout) {
   return rgbxxx_to_float3(float3_to_rgbxxx(c, layout), layout);
 }
 
+// We use both color endpoints to store a single color, hence the double precision.
 __device__ float3 minmaxSingleCorrectedColor(const float3 &c, ColorLayout layout) {
   ColorLayout single_color_layout;
   switch (layout)
   {
-  case R_4:       single_color_layout = R_8;          break;
-  case R_8:       single_color_layout = R_16;         break;
-  case RG_8_8:    single_color_layout = RG_16_16;     break;
-  case RGB_5_6_5: single_color_layout = RGB_10_12_10; break;
-  default:        single_color_layout = NONE;         break;
+      case R_4:       single_color_layout = R_8;          break;
+      case R_8:       single_color_layout = R_16;         break;
+      case RG_8_8:    single_color_layout = RG_16_16;     break;
+      case RGB_5_6_5: single_color_layout = RGB_10_12_10; break;
+      default:        single_color_layout = NONE;         break;
   }
   return minmaxCorrectedColor(c, single_color_layout);
 }
@@ -407,7 +408,7 @@ __device__ inline float3x3 warpSum(float3x3 m) {
   return m;
 }
 
-template<bool minmaxcorrection, bool laberr>
+template<bool minmaxcorrection>
 __global__ void scorefunction_gpu_warp(size_t numColors,
                                        size_t numBlocks,
                                        const float3 * colors,
@@ -707,18 +708,14 @@ void uploadColors(const std::vector<float3> &colors)
     }
 }
 
-void scores_gpu(
-  const std::vector<BlockBuild> &blocks,
-  std::vector<float> &scores,
-  std::vector<uint8_t> &weights,
-  std::vector<float3> &colorRanges,
-  float error_treshold,
-  bool minmaxcorrection,
-  bool laberr,
-  ColorLayout layout,
-  int K,
-  bool finalEval
-)
+void scores_gpu(const std::vector<BlockBuild> &blocks,
+                std::vector<float> &scores,
+                std::vector<uint8_t> &weights,
+                std::vector<float3> &colorRanges,
+                float error_treshold,
+                ColorLayout layout,
+                int K,
+                bool finalEval)
 {
   if (g_numColors == 0)
   {
@@ -759,8 +756,7 @@ void scores_gpu(
     dim3 blockDim(128);
     dim3 gridDim(20 * 16);
     // reduce register preassure via templates
-    if (minmaxcorrection) {
-      scorefunction_gpu_warp<true, false> <<< gridDim, blockDim >>> (
+    scorefunction_gpu_warp<true> <<< gridDim, blockDim >>> (
         g_numColors,
         blocks.size(),
         g_dev_colors,
@@ -772,10 +768,9 @@ void scores_gpu(
         layout,
         K,
         jobQueue,
-        finalEval
-        );
-    }
+        finalEval);
   }
+
   scores.resize(blocks.size());
   cudaMemcpy(&scores[0], pScores, blocks.size() * sizeof(float), cudaMemcpyDeviceToHost);
   if (finalEval)
