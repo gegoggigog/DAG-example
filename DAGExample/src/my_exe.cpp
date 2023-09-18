@@ -110,6 +110,11 @@ int main(int argc, char* argv[]) {
 	glfwMakeContextCurrent(window);
 	gladLoadGL(glfwGetProcAddress);
 
+	glm::mat3 a;
+	glm::vec3 b;
+
+	auto c = a * b;
+
 	// No v-sync.
 	glfwSwapInterval(0);
 	{

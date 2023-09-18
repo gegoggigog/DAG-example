@@ -120,28 +120,30 @@ __host__ __device__ float3 inline operator - (const float3 &a) { return make_flo
 __host__ __device__ inline float dot(const float3 &a, const float3 &b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 __host__ __device__ inline float length(float3 a) { return sqrt(dot(a, a)); }
 __host__ __device__ inline float3 normalize(float3 a) { return (1.0f / length(a)) * a; }
-// clang-format on
 
-template<class T> __host__ __device__ T min(T a, T b) { return a < b ? a : b; }
-template<class T> __host__ __device__ T max(T a, T b) { return a > b ? a : b; }
-template<class T> __host__ __device__ T clamp(T val, T minVal, T maxVal) { return min(max(minVal, val), maxVal); }
-
-struct float3x3 {
-  float3 c1, c2, c3;
-};
-__host__ __device__ float3x3 make_float3x3(const float3& v1, const float3& v2, const float3& v3) { 
-    float3x3 m; m.c1 = v1; m.c2 = v2; m.c3 = v3; return m;
+struct float3x3 { float3 c1, c2, c3; };
+__host__ __device__ float3x3 make_float3x3(const float3& v1, const float3& v2, const float3& v3) {
+    float3x3 m;
+    m.c1 = v1;
+    m.c2 = v2;
+    m.c3 = v3;
+    return m;
 }
 __host__ __device__ float3x3 make_float3x3(const float s) {
   return make_float3x3(make_float3(s,    0.0f, 0.0f),
                        make_float3(0.0f, s,    0.0f),
                        make_float3(0.0f, 0.0f, s));
 }
-__host__ __device__ inline float trace(const float3x3 &m) { return m.c1.x + m.c2.y + m.c3.z; }
-__host__ __device__  inline const float3   operator * (const float3x3& m,  const float3& v)    { return v.x * m.c1 + v.y * m.c2 + v.z * m.c3; }
-__host__ __device__  inline const float3x3 operator * (const float s,      const float3x3& m)  { return make_float3x3(s * m.c1, s * m.c2, s * m.c3); }
-__host__ __device__  inline const float3x3 operator + (const float3x3& m1, const float3x3& m2) { return make_float3x3(m1.c1 + m2.c1, m1.c2 + m2.c2, m1.c3 + m2.c3); }
-__host__ __device__  inline const float3x3 operator - (const float3x3& m1, const float3x3& m2) { return make_float3x3(m1.c1 - m2.c1, m1.c2 - m2.c2, m1.c3 - m2.c3); }
+__host__ __device__ inline const float3   operator * (const float3x3& m,  const float3& v)    { return v.x * m.c1 + v.y * m.c2 + v.z * m.c3; }
+__host__ __device__ inline const float3x3 operator * (const float s,      const float3x3& m)  { return make_float3x3(s * m.c1, s * m.c2, s * m.c3); }
+__host__ __device__ inline const float3x3 operator + (const float3x3& m1, const float3x3& m2) { return make_float3x3(m1.c1 + m2.c1, m1.c2 + m2.c2, m1.c3 + m2.c3); }
+__host__ __device__ inline const float3x3 operator - (const float3x3& m1, const float3x3& m2) { return make_float3x3(m1.c1 - m2.c1, m1.c2 - m2.c2, m1.c3 - m2.c3); }
+__host__ __device__ inline float trace(const float3x3& m) { return m.c1.x + m.c2.y + m.c3.z; }
+
+template<class T> __host__ __device__ T min(const T &a, const T &b) { return a < b ? a : b; }
+template<class T> __host__ __device__ T max(const T &a, const T &b) { return a > b ? a : b; }
+template<class T> __host__ __device__ T clamp(const T &val, const T &minVal, const T &maxVal) { return min(max(minVal, val), maxVal); }
+// clang-format on
 
 template<class T> __host__ __device__ inline T compensatedSum(T val, T &sum, T &error) {
   T y = val - error;
