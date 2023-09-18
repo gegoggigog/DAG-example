@@ -181,7 +181,6 @@ int main(int argc, char* argv[]) {
 		dag_tracer.resize(screen_dim.x, screen_dim.y);
 
 		ColorData tmp;
-		tmp.bits_per_weight  = compressed_color.bits_per_weight;
 		tmp.nof_blocks       = compressed_color.nof_blocks;
 		tmp.nof_colors       = compressed_color.nof_colors;
 		tmp.d_block_colors   = compressed_color.d_block_colors;

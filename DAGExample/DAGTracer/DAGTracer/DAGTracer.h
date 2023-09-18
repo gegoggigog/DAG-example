@@ -61,7 +61,6 @@ struct ColorData {
   uint8_t *d_block_colors;
   uint32_t *d_weights;
   uint64_t nof_blocks;
-  uint32_t bits_per_weight;
   uint64_t nof_colors;
 };
 

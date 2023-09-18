@@ -13,7 +13,6 @@ namespace ours_varbit {
     uint64_t *d_macro_w_offset = nullptr;
     uint64_t nof_blocks;
     uint64_t nof_colors;
-    uint32_t bits_per_weight;
     ColorLayout color_layout;
     bool use_single_color_blocks;
     std::vector<uint32_t> h_block_headers;

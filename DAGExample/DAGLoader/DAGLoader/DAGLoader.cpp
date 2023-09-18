@@ -44,7 +44,6 @@ namespace ours_varbit
     archive(
       cereal::make_nvp("nof_blocks", data.nof_blocks),
       cereal::make_nvp("nof_colors", data.nof_colors),
-      cereal::make_nvp("bits_per_weight", data.bits_per_weight),
       cereal::make_nvp("color_layout", data.color_layout),
       cereal::make_nvp("use_single_color_blocks", data.use_single_color_blocks),
       cereal::make_nvp("block_headers", data.h_block_headers),

@@ -71,8 +71,9 @@ namespace ours_varbit {
   class CompressionState
   {
   public:
-    const unsigned bits_per_weight = 4;
-    const int K = 1 << bits_per_weight;
+    const int max_bits_per_weight = 4;
+    const int min_bits_per_weight = 0;
+    const int K = 1 << max_bits_per_weight;
 
     const int COLOR_COST      = 16 + 16;
     const int START_IDX_COST  = 14;
@@ -87,7 +88,7 @@ namespace ours_varbit {
       , compression_layout{ layout }
     {
       const size_t n_colors = original_colors_ref.size();
-      const uint64_t bits_required = n_colors * bits_per_weight;
+      const uint64_t bits_required = n_colors * max_bits_per_weight;
 
       m_weights.resize(n_colors);
       h_weights.resize(((bits_required - 1ull) / 32ull) + 1);
@@ -614,8 +615,8 @@ namespace ours_varbit {
   {
     CompressionInfo nfo;
     OursData ours_dat;
-    nfo.wrong_colors.resize((size_t)bits_per_weight + 1, 0);
-    nfo.ok_colors.resize((size_t)bits_per_weight + 1, 0);
+    nfo.wrong_colors.resize(max_bits_per_weight + 1, 0);
+    nfo.ok_colors.resize(max_bits_per_weight + 1, 0);
 
     const size_t n_colors = original_colors_ref.size();
 	auto result = (n_colors + macro_block_size - 1) / macro_block_size;
@@ -687,7 +688,6 @@ namespace ours_varbit {
 
     ours_dat.nof_blocks = nfo.nof_blocks;
     ours_dat.nof_colors = n_colors;
-    ours_dat.bits_per_weight = bits_per_weight;
     ours_dat.use_single_color_blocks = false;
 
     ours_dat.h_block_headers = h_block_headers;
@@ -706,9 +706,6 @@ namespace ours_varbit {
 
   vector<end_block> CompressionState::compress_range(size_t part_start, size_t part_size)
   {
-    const int max_bits_per_weight = bits_per_weight;
-    const int min_bits_per_weight = 0;
-
     vector<float3> workingColorSet(part_size);
     for (size_t i = part_start, j = 0;
          i < (part_start + part_size);
