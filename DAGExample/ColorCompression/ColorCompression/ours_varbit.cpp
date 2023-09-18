@@ -142,7 +142,6 @@ namespace ours_varbit {
     ColorLayout compression_layout;
     const float error_treshold;
 
-    bool use_LAB_error = false;
     bool use_minmax_correction = true;
 
     disc_vector<uint32_t> original_colors_ref;
@@ -788,7 +787,7 @@ namespace ours_varbit {
           colorRanges,
           error_treshold,
           use_minmax_correction,
-          use_LAB_error,
+          false,
           compression_layout,
           vals_per_weight
         );
@@ -897,7 +896,7 @@ namespace ours_varbit {
           colorRanges,
           error_treshold,
           use_minmax_correction,
-          use_LAB_error,
+          false,
           compression_layout,
           vals_per_weight,
           true

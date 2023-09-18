@@ -686,30 +686,25 @@ __global__ void scorefunction_gpu_warp(size_t numColors,
 
 void uploadColors(const std::vector<float3> &colors)
 {
-  if (g_dev_weights) cudaFree(g_dev_weights);
-  if (g_dev_colors) cudaFree(g_dev_colors);
-
-  g_numColors = colors.size();
-
-    {
-        cudaError_t err = cudaGetLastError();
-		if( cudaSuccess != err ) {
-			std::fprintf( stderr, "ERROR %s:%d: cuda error \"%s\"\n", __FILE__, __LINE__, cudaGetErrorString(err) );
-		}
+    if(cudaError_t err = cudaGetLastError(); cudaSuccess != err ) {
+        std::fprintf( stderr, "ERROR %s:%d: cuda error \"%s\"\n", __FILE__, __LINE__, cudaGetErrorString(err) );
     }
 
-//    printf("Allocating %zu weights (%fMB)\n", colors.size(), colors.size()  * sizeof(uint8_t) / double(1 << 20));
-//    printf("Allocating %zu colors (%fMB)\n", colors.size(), colors.size()  * sizeof(float3) / double(1 << 20));
+    if (g_numColors < colors.size())
+    {
+        if (g_dev_weights) cudaFree(g_dev_weights);
+        if (g_dev_colors) cudaFree(g_dev_colors);
+        g_numColors = colors.size();
+        // alloc per-color memory
+        cudaMallocManaged(&g_dev_weights, g_numColors * sizeof(uint8_t));
+        cudaMallocManaged(&g_dev_colors,  g_numColors * sizeof(float3));
+    }
 
-  // alloc per-color memory
-  cudaMallocManaged(&g_dev_weights, colors.size() * sizeof(uint8_t));
-  cudaMallocManaged(&g_dev_colors, colors.size() * sizeof(float3));
-  cudaMemcpy(g_dev_colors, &colors[0], colors.size() * sizeof(float3), cudaMemcpyHostToDevice);
+    cudaMemcpy(g_dev_colors, colors.data(), colors.size() * sizeof(float3), cudaMemcpyHostToDevice);
 
-        cudaError_t err = cudaGetLastError();
-		if( cudaSuccess != err ) {
-			std::fprintf( stderr, "ERROR %s:%d: cuda error \"%s\"\n", __FILE__, __LINE__, cudaGetErrorString(err) );
-		}
+    if(cudaError_t err = cudaGetLastError(); cudaSuccess != err ) {
+        std::fprintf( stderr, "ERROR %s:%d: cuda error \"%s\"\n", __FILE__, __LINE__, cudaGetErrorString(err) );
+    }
 }
 
 void scores_gpu(
@@ -739,17 +734,13 @@ void scores_gpu(
   static size_t blockAllocSize = 0;
   if (blockAllocSize < blocks.size())
   {
-    if (pBlocks) cudaFree(pBlocks);
-    if (pScores) cudaFree(pScores);
+    if (pBlocks)      cudaFree(pBlocks);
+    if (pScores)      cudaFree(pScores);
     if (pColorRanges) cudaFree(pColorRanges);
 
     blockAllocSize = blocks.size();
-
-//    printf("Allocating %zu blocks (%fMB)\n", blockAllocSize, blockAllocSize  * sizeof(BlockBuild) / double(1 << 20));
-//    printf("Allocating %zu blocks scores (%fMB)\n", blockAllocSize, blockAllocSize  * sizeof(float) / double(1 << 20));
-//    printf("Allocating %zu blocks ranges (%fMB)\n", blockAllocSize, blockAllocSize  * 2 * sizeof(float3) / double(1 << 20));
-    cudaMallocManaged(&pBlocks, blockAllocSize * sizeof(BlockBuild));
-    cudaMallocManaged(&pScores, blockAllocSize * sizeof(float));
+    cudaMallocManaged(&pBlocks,      blockAllocSize * sizeof(BlockBuild));
+    cudaMallocManaged(&pScores,      blockAllocSize * sizeof(float));
     cudaMallocManaged(&pColorRanges, blockAllocSize * 2 * sizeof(float3));
   }
 
@@ -757,11 +748,10 @@ void scores_gpu(
   cudaMemcpy(pBlocks, &blocks[0], blocks.size() * sizeof(BlockBuild), cudaMemcpyHostToDevice);
 
   static int *jobQueue = nullptr;
-  if (!jobQueue)
-  {
+  if (!jobQueue) {
     cudaMalloc(&jobQueue, sizeof(int));
   }
-  assert(blocks.size() < std::numeric_limits<int32_t>::max());
+
   int jobs = int(blocks.size()) - 1; // first job is the last valid idx.
   cudaMemcpy(jobQueue, &jobs, sizeof(int), cudaMemcpyHostToDevice);
 
@@ -769,9 +759,8 @@ void scores_gpu(
     dim3 blockDim(128);
     dim3 gridDim(20 * 16);
     // reduce register preassure via templates
-    if (minmaxcorrection)
-    {
-      scorefunction_gpu_warp<true, false> << <gridDim, blockDim >> > (
+    if (minmaxcorrection) {
+      scorefunction_gpu_warp<true, false> <<< gridDim, blockDim >>> (
         g_numColors,
         blocks.size(),
         g_dev_colors,
