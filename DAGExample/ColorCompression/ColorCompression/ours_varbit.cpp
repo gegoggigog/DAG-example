@@ -615,6 +615,33 @@ namespace ours_varbit {
     return result;
   };
 
+
+  void printProgression(const std::size_t part,
+                        const std::size_t nof_parts,
+                        const std::size_t header_size,
+                        const std::chrono::high_resolution_clock::time_point startTime) {
+    const auto printSeconds = [](uint64_t input_seconds) {
+        size_t minutes = input_seconds / 60;
+        size_t seconds = input_seconds % 60;
+
+        cout << minutes << ":" << seconds << " ";
+    };
+    if (part % 100 == 0)
+    {
+        const double elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - startTime).count();
+        cout << "Part: "
+            << part
+            << " of "
+            << nof_parts
+            << " header_size: "
+            << header_size
+            << " Elapsed: ";
+        printSeconds(uint64_t(elapsed));
+        cout << "Remaining: ";
+        printSeconds(uint64_t(elapsed * nof_parts / part - elapsed));
+        cout << '\n';
+    }
+  }
   // Compress colors using CUDA.
   std::tuple<CompressionInfo, OursData> CompressionState::compress()
   {
@@ -632,33 +659,9 @@ namespace ours_varbit {
     size_t macro_w_bptr = 0;
 
     const auto startTime = std::chrono::high_resolution_clock::now();
-
-    const auto printSeconds = [](uint64_t input_seconds)
-    {
-        size_t minutes = input_seconds / 60;
-        size_t seconds = input_seconds % 60;
-
-        cout << minutes << ":" << seconds << " ";
-    };
-
     for (int part = 0; part < nof_parts; part++)
     {
-        if (part % 100 == 0)
-        {
-            const double elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - startTime).count();
-            cout << "Part: "
-                 << part
-                 << " of "
-                 << nof_parts
-                 << " header_size: "
-                 << h_block_headers.size()
-                 << " Elapsed: ";
-            printSeconds(uint64_t(elapsed));
-            cout << "Remaining: ";
-            printSeconds(uint64_t(elapsed * nof_parts / part - elapsed));
-            cout << '\n';
-        }
-
+        printProgression(part, nof_parts, h_block_headers.size(), startTime);
       const size_t part_size = (part == nof_parts - 1) ?
           (n_colors % macro_block_size) : macro_block_size;
 
