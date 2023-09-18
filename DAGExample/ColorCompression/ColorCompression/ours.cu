@@ -18,8 +18,6 @@ float __device__ rand_lut[64] = {
   0.0615243969, 0.0616311938, 0.0927325418, 0.450354735, 0.0980233341, 0.962107109, 0.411898038, 0.560993149,
   0.997294696, 0.845310842, 0.522109665, 0.293706246, 0.542670523, 0.79422221, 0.0684990289, 0.410180829 };
 
-using std::vector;
-
 //#include "colorspace.h"
 namespace colorspace {
   struct Lab {
@@ -130,43 +128,22 @@ template<class T> __host__ __device__ T clamp(T val, T minVal, T maxVal) { retur
 
 struct float3x3 {
   float3 c1, c2, c3;
+  __host__ __device__ float3x3(const float3 &v1, const float3 &v2, const float3 &v3) : c1(v1), c2(v2), c3(v3) {};
 
-  __host__ __device__ float3x3(const float3 &v1, const float3 &v2, const float3 &v3)
-    : c1(v1), c2(v2), c3(v3) {};
-
-  __host__ __device__  inline const float3 operator * (const float3& v) const
-  {
-    return v.x * c1 + v.y * c2 + v.z * c3;
-  }
-
-  __host__ __device__  inline const float3x3 operator + (const float3x3& m) const
-  {
-    return float3x3(c1 + m.c1, c2 + m.c2, c3 + m.c3);
-  }
-
-  __host__ __device__  inline const float3x3 operator - (const float3x3& m) const
-  {
-    return float3x3(c1 - m.c1, c2 - m.c2, c3 - m.c3);
-  }
-
+  __host__ __device__  inline const float3   operator * (const float3& v)   const { return v.x * c1 + v.y * c2 + v.z * c3; }
+  __host__ __device__  inline const float3x3 operator + (const float3x3& m) const { return float3x3(c1 + m.c1, c2 + m.c2, c3 + m.c3); }
+  __host__ __device__  inline const float3x3 operator - (const float3x3& m) const { return float3x3(c1 - m.c1, c2 - m.c2, c3 - m.c3); }
 };
 
 __host__ __device__ inline float trace(const float3x3 &m) { return m.c1.x + m.c2.y + m.c3.z; }
 
-__host__ __device__  inline const float3x3 operator * (const float s, const float3x3& m)
-{
-  return float3x3(s * m.c1, s * m.c2, s * m.c3);
-}
+__host__ __device__  inline const float3x3 operator * (const float s, const float3x3& m) { return float3x3(s * m.c1, s * m.c2, s * m.c3); }
 
-__host__ __device__ float3x3 make_float3x3(const float3 &v1, const float3 &v2, const float3 &v3) {
-  return float3x3(v1, v2, v3);
-}
-
-__host__ __device__ float3x3 make_float3x3(float s) {
-  return float3x3(make_float3(s, 0.0f, 0.0f),
-                  make_float3(0.0, s, 0.0f),
+__host__ __device__ float3x3 make_float3x3(const float3 &v1, const float3 &v2, const float3 &v3) { return float3x3(v1, v2, v3); }
+__host__ __device__ float3x3 make_float3x3(const float s) {
+  return float3x3(make_float3(s,    0.0f, 0.0f),
+                  make_float3(0.0f, s,    0.0f),
                   make_float3(0.0f, 0.0f, s));
-
 }
 
 template<class T> __host__ __device__ inline T compensatedSum(T val, T &sum, T &error) {
@@ -713,7 +690,7 @@ size_t g_numColors = 0;
 
 #include <csignal>
 
-void uploadColors(const vector<float3> &colors)
+void uploadColors(const std::vector<float3> &colors)
 {
   if (g_dev_weights) cudaFree(g_dev_weights);
   if (g_dev_colors) cudaFree(g_dev_colors);
@@ -742,10 +719,10 @@ void uploadColors(const vector<float3> &colors)
 }
 
 void scores_gpu(
-  const vector<BlockBuild> &blocks,
-  vector<float> &scores,
-  vector<uint8_t> &weights,
-  vector<float3> &colorRanges,
+  const std::vector<BlockBuild> &blocks,
+  std::vector<float> &scores,
+  std::vector<uint8_t> &weights,
+  std::vector<float3> &colorRanges,
   float error_treshold,
   bool minmaxcorrection,
   bool laberr,

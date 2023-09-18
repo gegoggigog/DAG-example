@@ -76,9 +76,9 @@ namespace ours_varbit {
   class CompressionState
   {
   public:
-    const int max_bits_per_weight = 4;
-    const int min_bits_per_weight = 0;
-    const int K = 1 << max_bits_per_weight;
+    const unsigned max_bits_per_weight = 4;
+    const unsigned min_bits_per_weight = 0;
+    const unsigned K = 1 << max_bits_per_weight;
 
     const int COLOR_COST      = 16 + 16;
     const int START_IDX_COST  = 14;
@@ -94,11 +94,8 @@ namespace ours_varbit {
     {
       const size_t n_colors = original_colors_ref.size();
       const uint64_t bits_required = n_colors * max_bits_per_weight;
-
       m_weights.resize(n_colors);
-      h_weights.resize(((bits_required - 1ull) / 32ull) + 1);
-      //h_block_headers.reserve(10000000);
-      //h_macro_block_headers.reserve(100000);
+      h_weights.resize((bits_required + 31)/32);
     }
 
     tuple<CompressionInfo, OursData> compress();
@@ -126,6 +123,7 @@ namespace ours_varbit {
 
     float getError(const vec3& a_, const vec3& b_);
     float getErrorSquared(const vec3& a_, const vec3& b_);
+
     vec3 ref_color(std::size_t start)
     {
       switch (compression_layout)
@@ -680,6 +678,7 @@ namespace ours_varbit {
     }
 
     const size_t weight_container_size = (global_bptr + 31) / 32;
+    std::cout << "weight_container_size: " << h_weights.size() << " -> " << weight_container_size << '\n';
     h_weights.resize(weight_container_size);
     // Write essential result
     ours_dat.nof_blocks       = n_blocks;
@@ -719,10 +718,10 @@ namespace ours_varbit {
     }
 
     uploadColors(workingColorSet);
+
     struct block
     {
-      block()
-        : start_node(0xBADC0DE) {};
+      block() : start_node(0xBADC0DE) {};
       block(size_t start, size_t rng)
         : start_node(start)
         , range(rng)
@@ -734,14 +733,12 @@ namespace ours_varbit {
       bool dirty;
     };
 
-    vector<vector<block>> block_tree((size_t)max_bits_per_weight + 1);
-    for (
-      int bits_per_weight = min_bits_per_weight;
-      bits_per_weight <= max_bits_per_weight;
-      bits_per_weight++
-      )
+    vector<vector<block>> block_tree(max_bits_per_weight + 1);
+    for(size_t bits_per_weight = min_bits_per_weight;
+        bits_per_weight <= max_bits_per_weight;
+        bits_per_weight++)
     {
-      int vals_per_weight = 1 << bits_per_weight;
+      unsigned vals_per_weight = 1 << bits_per_weight;
 
       size_t block_index = 0;
       vector<BlockBuild> buildBlocks(workingColorSet.size(), BlockBuild(-1));
@@ -758,7 +755,7 @@ namespace ours_varbit {
       else
       {
         buildBlocks.clear();
-        auto& prev_blocks = block_tree[(size_t)bits_per_weight - 1];
+        auto& prev_blocks = block_tree[bits_per_weight - 1];
         while (block_index < prev_blocks.size())
         {
           block& candidateBlock = prev_blocks[block_index];
