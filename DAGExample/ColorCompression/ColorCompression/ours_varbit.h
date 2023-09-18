@@ -25,8 +25,8 @@ public:
   virtual ~disc_vector() = default;
   disc_vector(const std::string file, std::size_t cache_size) : ifs{ file, std::ifstream::binary | std::ifstream::in | std::ifstream::ate }
   {
-      if (!ifs.good()) throw "EEEE";
-    const_cast<std::size_t&>(_size) = ifs.tellg() / sizeof(T);
+    if (!ifs.good()) throw "EEEE";
+    _size = ifs.tellg() / sizeof(T);
     ifs.seekg(std::ifstream::beg);
     _cache.resize(cache_size);
   };
@@ -76,7 +76,7 @@ private:
   std::vector<T> _cache;
   bool _has_cache{ false };
   std::size_t _block{ 0 };
-  const std::size_t _size{ 0 };
+  std::size_t _size{ 0 };
 };
 
 constexpr uint64_t macro_block_size = 16ull * 1024ull;

@@ -28,7 +28,7 @@ using glm::vec4;
 // Currently we encode into 64 bits resulting in an upper limit of 2097152.
 // We use max resolution of 2048 however as going higher will probably generate more voxels than our output buffer 
 // m_tex_dim == 128*1024*1024. 
-constexpr int max_subdag_resolution{2048};
+constexpr int max_subdag_resolution{1024};
 
 chag::Aabb make_square_aabb(chag::Aabb aabb) {
 	const glm::vec3 centre        = aabb.getCentre();

@@ -55,6 +55,7 @@ std::optional<dag::DAG> DAGConstructor::generate_DAG(GetVoxelFunction get_voxels
 	const auto startTime = std::chrono::high_resolution_clock::now();
 
 	uint64_t total_count = 0;
+	uint64_t total_unique_count = 0;
 	for (int i{ 0 }; i < aabb_list.size(); ++i)
 	{
 		print_subdag_process(i, 100, aabb_list.size(), startTime);
@@ -67,11 +68,14 @@ std::optional<dag::DAG> DAGConstructor::generate_DAG(GetVoxelFunction get_voxels
 			cuda_builder->upload_colors(voxels.base_color, voxels.count);
 #endif
 			dags[i] = cuda_builder->build_dag(voxels.count, LevelsExcluding64BitLeafs, aabb);
+
+			total_unique_count += dags[i] ? (*dags[i]).m_base_colors.size() : 0ull;
 		}
 	}
 	const auto DAGTimeDone = std::chrono::high_resolution_clock::now();
 	std::cout << "done.\n";
 	std::cout << "Total voxels: " << total_count << "\n";
+	std::cout << "Total unique voxels: " << total_unique_count << "\n";
 
 
 	// The way the sub volumes are split, is in a morton order.
@@ -101,6 +105,7 @@ std::optional<dag::DAG> DAGConstructor::generate_DAG(GetVoxelFunction get_voxels
 	std::cout << "done.\n";
 	std::cout << "Time to DAG: "   << std::chrono::duration_cast<std::chrono::duration<double>>(DAGTimeDone - startTime).count()     << " seconds\n";
 	std::cout << "Time to Merge: " << std::chrono::duration_cast<std::chrono::duration<double>>(MergeTimeDone - DAGTimeDone).count() << " seconds\n";
+
 	// When all DAGs have been merged, the result resides in the
 	// first slot of the array.
 	if (dags[0]) {

@@ -93,7 +93,7 @@ int main(int argc, char* argv[]) {
 
 	ZoneScoped;
 	
-	constexpr int dag_resolution{ 1 << 11 };
+	constexpr int dag_resolution{ 1 << 13 };
 	std::cout << "Resolution: " << dag_resolution << std::endl;
 
 	std::optional<dag::DAG> dag;
