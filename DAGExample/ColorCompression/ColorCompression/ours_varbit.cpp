@@ -38,11 +38,35 @@ namespace ours_varbit {
     std::size_t total_bits = 0;
     std::size_t nof_blocks = 0;
     std::size_t weights_size = 0;
-    std::size_t macro_header_size;
-    std::size_t headers_size;
-    std::size_t colors_size;
+    std::size_t macro_header_size = 0;
+    std::size_t headers_size = 0;
+    std::size_t colors_size = 0;
     double max_error = 0.0;
   };
+
+  int getColorCost(const ColorLayout layout) {
+      switch (layout)
+      {
+          case ColorLayout::RGB_10_12_10:
+          case ColorLayout::RG_16_16:
+              return 32 + 32;
+              break;
+          case ColorLayout::RGB_8_8_8:
+              return 24 + 24;
+              break;
+          case ColorLayout::RG_8_8:
+          case ColorLayout::RGB_5_6_5:
+          case ColorLayout::R_16:
+              return 16 + 16;
+              break;
+          case ColorLayout::R_8:
+              return 8 + 8;
+          case ColorLayout::R_4:
+              return 4 + 4;
+              break;
+      }
+      throw "Invalid ColorLayout";
+  }
 
   class CompressionState
   {
@@ -50,46 +74,25 @@ namespace ours_varbit {
     const unsigned bits_per_weight = 4;
     const int K = 1 << bits_per_weight;
 
-    int COLOR_COST      = 16 + 16;
+    const int COLOR_COST      = 16 + 16;
     const int START_IDX_COST  = 14;
     const int WEIGHT_IDX_COST = 16;
     const int BPW_ID_COST     = 2;
     const int HEADER_COST     = 32;
 
     explicit CompressionState(disc_vector<uint32_t>&& original_colors, const float error_treshold_, const ColorLayout layout)
-      : original_colors_ref{ std::move(original_colors) }
+      : COLOR_COST{getColorCost(layout)}
+      , original_colors_ref{ std::move(original_colors) }
       , error_treshold{ error_treshold_ }
       , compression_layout{ layout }
     {
       const size_t n_colors = original_colors_ref.size();
       const uint64_t bits_required = n_colors * bits_per_weight;
 
-      switch (layout)
-      {
-      case ColorLayout::RGB_10_12_10:
-      case ColorLayout::RG_16_16:
-        COLOR_COST = 32 + 32;
-        break;
-      case ColorLayout::RGB_8_8_8:
-        COLOR_COST = 24 + 24;
-        break;
-      case ColorLayout::RG_8_8:
-      case ColorLayout::RGB_5_6_5:
-      case ColorLayout::R_16:
-        COLOR_COST = 16 + 16;
-        break;
-      case ColorLayout::R_8:
-        COLOR_COST = 8 + 8;
-      case ColorLayout::R_4:
-        COLOR_COST = 4 + 4;
-        break;
-      }
-
       m_weights.resize(n_colors);
-
       h_weights.resize(((bits_required - 1ull) / 32ull) + 1);
-      h_block_headers.reserve(10000000);
-      h_macro_block_headers.reserve(100000);
+      //h_block_headers.reserve(10000000);
+      //h_macro_block_headers.reserve(100000);
     }
 
     tuple<CompressionInfo, OursData> compress();
@@ -1210,6 +1213,39 @@ namespace ours_varbit {
     return max_error_eval;
   }
 
+  void printCompressionResults(const CompressionInfo &nfo, const OursData &result)
+  {
+      cout << "Uncompressed color size: " << result.bytes_raw << " bytes\n";
+      cout << "Size of variable bitrate colors: "
+          << nfo.total_bits
+          << "bits ("
+          << nfo.total_bits / 8
+          << "bytes) with compression at "
+          << 100.f * float(nfo.total_bits) / static_cast<float>(result.bytes_raw * 8)
+          << "%\n";
+      cout << "Nof blocks: " << nfo.nof_blocks << '\n';
+      cout << "Average nof colors/block: " << result.nof_colors / static_cast<float>(nfo.nof_blocks) << '\n';
+
+      for (size_t i = 0; i < nfo.wrong_colors.size(); i++)
+      {
+          cout << nfo.wrong_colors[i]
+              << " wrong evals at "
+              << i
+              << "bpw... "
+              << nfo.ok_colors[i]
+              << " was correct.. ("
+              << 100.f * float(nfo.wrong_colors[i]) / float(nfo.wrong_colors[i] + nfo.ok_colors[i])
+              << " %)\n";
+      }
+      cout << "Max error is: " << nfo.max_error << '\n';
+      cout << "Headers size: " << nfo.headers_size << " bytes.\n";
+      cout << "Colors size: " << nfo.colors_size << " bytes.\n";
+      cout << "Weights size: " << nfo.weights_size << " bytes.\n";
+      cout << "Macro header size: " << nfo.macro_header_size << " bytes.\n";
+      cout << "Total: " << result.bytes_compressed << " bytes"
+           << " (" << result.compression * 100.0f << "%).\n";
+  }
+
   OursData
     compressColors(
       disc_vector<uint32_t>&& original_colors,
@@ -1217,64 +1253,16 @@ namespace ours_varbit {
       const ColorLayout layout
     )
   {
-    //ColorLayout layout = R_8;
-    auto[nfo, result] =
-      CompressionState{ std::move(original_colors), error_treshold, layout }.compress();
-    int n_channels =
-      layout == RGB_5_6_5 ? 3 :
-      layout == RG_8_8 ? 2 :
-      layout == R_8 ? 1 : 1;
+    auto[nfo, result] = CompressionState{ std::move(original_colors), error_treshold, layout }.compress();
+    int n_channels = layout == RGB_5_6_5 ? 3 :
+                     layout == RG_8_8    ? 2 :
+                     layout == R_8       ? 1 : 1;
 
     result.error_threshold = error_treshold;
-
-    cout << "Uncompressed color size: " << original_colors.size() * n_channels << " bytes\n";
-    result.bytes_raw = original_colors.size() * n_channels;
-    cout
-      << "Size of variable bitrate colors: "
-      << nfo.total_bits
-      << "bits ("
-      << nfo.total_bits / 8
-      << "bytes) with compression at "
-      << 100.f * float(nfo.total_bits) / float(original_colors.size() * n_channels * 8)
-      << "%\n";
-
-    cout << "Nof blocks: " << nfo.nof_blocks << '\n';
-    cout << "Average nof colors/block: " << original_colors.size() / float(nfo.nof_blocks) << '\n';
-
-    for (size_t i = 0; i < nfo.wrong_colors.size(); i++)
-    {
-      cout
-        << nfo.wrong_colors[i]
-        << " wrong evals at "
-        << i
-        << "bpw... "
-        << nfo.ok_colors[i]
-        << " was correct.. ("
-        << 100.f * float(nfo.wrong_colors[i]) / float(nfo.wrong_colors[i] + nfo.ok_colors[i])
-        << " %)\n";
-    }
-    cout << "Max error is: " << nfo.max_error << '\n';
-
-    ///////////////////////////////////////////////////////////////////////
-    // Put in final data structure
-    ///////////////////////////////////////////////////////////////////////
-
-    {
-      cout << "Headers size: " << nfo.headers_size << " bytes.\n";
-      cout << "Colors size: " << nfo.colors_size << " bytes.\n";
-      cout << "Weights size: " << nfo.weights_size << " bytes.\n";
-      cout << "Macro header size: " << nfo.macro_header_size << " bytes.\n";
-      float compression = float(
-        double((uint64_t)nfo.headers_size + (uint64_t)nfo.colors_size + nfo.weights_size + (uint64_t)nfo.macro_header_size)
-        / double(original_colors.size() * n_channels));
-      cout
-        << "Total: "
-        << (uint64_t)nfo.headers_size + (uint64_t)nfo.colors_size + nfo.weights_size + (uint64_t)nfo.macro_header_size
-        << " bytes ("
-        << compression * 100.0f << "%).\n";
-      result.compression = compression;
-	  result.bytes_compressed = nfo.headers_size + nfo.colors_size + nfo.weights_size + nfo.macro_header_size;
-    }
+    result.bytes_raw = result.nof_colors * n_channels;
+    result.bytes_compressed = nfo.headers_size + nfo.colors_size + nfo.weights_size + nfo.macro_header_size;
+    result.compression = static_cast<double>(result.bytes_compressed) / static_cast<double>(result.bytes_raw);
+    printCompressionResults(nfo, result);
     return result;
   }
 
