@@ -629,10 +629,7 @@ namespace ours_varbit {
   }
   // Compress colors using CUDA.
   void CompressionState::compress(OursData* p_data, CompressionInfo* p_nfo)
-  {
-    auto& data = *p_data;
-    auto& nfo  = *p_nfo;
-    
+  {;   
     std::vector<int> wrong_colors(max_bits_per_weight + 1, 0);
     std::vector<int> ok_colors(max_bits_per_weight + 1, 0);
 
@@ -660,26 +657,26 @@ namespace ours_varbit {
 
         if (p_nfo) {
             for (const auto& b : solution) {
-                nfo.total_bits += b.range * b.bpw + HEADER_COST + COLOR_COST;
+                p_nfo->total_bits += b.range * b.bpw + HEADER_COST + COLOR_COST;
             }
-            nfo.max_error = max(max_error_eval, nfo.max_error);
+            p_nfo->max_error = max(max_error_eval, p_nfo->max_error);
         }
     }
     if (p_nfo) {
-        nfo.ok_colors = std::move(ok_colors);
-        nfo.wrong_colors = std::move(wrong_colors);
+        p_nfo->ok_colors    = std::move(ok_colors);
+        p_nfo->wrong_colors = std::move(wrong_colors);
     }
 
     h_weights.resize((global_bptr + 31) / 32);
 
     // Write essential data
-    data.nof_blocks            = n_blocks;
-    data.nof_colors            = n_colors;
-    data.h_block_headers       = std::move(h_block_headers);
-    data.h_block_colors        = std::move(h_block_colors);
-    data.h_weights             = std::move(h_weights);
-    data.h_macro_block_headers = std::move(h_macro_block_headers);
-    data.color_layout          = compression_layout;
+    p_data->nof_blocks            = n_blocks;
+    p_data->nof_colors            = n_colors;
+    p_data->h_block_headers       = std::move(h_block_headers);
+    p_data->h_block_colors        = std::move(h_block_colors);
+    p_data->h_weights             = std::move(h_weights);
+    p_data->h_macro_block_headers = std::move(h_macro_block_headers);
+    p_data->color_layout          = compression_layout;
   }
 
   vector<end_block> CompressionState::compress_range(size_t part_start, size_t part_size)
