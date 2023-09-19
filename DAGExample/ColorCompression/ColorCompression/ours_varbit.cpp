@@ -120,16 +120,10 @@ namespace ours_varbit {
       vector<int>& ok_colors
     );
 
-    bool assign_weights(
-      size_t start,
-      size_t range,
-      const vec3& A,
-      const vec3& B,
-      const float error_treshold,
-      int vals_per_weight,
-      double* max_error = nullptr,
-      double* mse = nullptr
-    );
+    bool assign_weights(const end_block &eb,
+                        const float error_treshold,
+                        double* max_error = nullptr,
+                        double* mse = nullptr);
 
     float getError(const vec3& a_, const vec3& b_);
     float getErrorSquared(const vec3& a_, const vec3& b_);
@@ -347,22 +341,15 @@ namespace ours_varbit {
   // Evaluate if a range of colors can be represented as interpolations of
   // two given min and max points, and update the corresponding weights.
   ///////////////////////////////////////////////////////////////////////////
-  bool CompressionState::assign_weights(
-    size_t start,
-    size_t range,
-    const vec3& A,
-    const vec3& B,
-    const float error_treshold,
-    int vals_per_weight,
-    double* max_error,
-    double* mse
-  )
-  {
-    int K = vals_per_weight;
+  bool CompressionState::assign_weights(const end_block &eb,
+                                        const float error_treshold,
+                                        double* max_error,
+                                        double* mse) {
+    int K = 1 << eb.bpw;;
     // Trivial block of length 1.
-    if (range == 1)
+    if (eb.range == 1)
     {
-      m_weights[start] = 0;
+      m_weights[eb.start_node] = 0;
       if (max_error != nullptr)
       {
         *max_error = 0.0;
@@ -374,8 +361,8 @@ namespace ours_varbit {
 
       if (DEBUG_ERROR)
       {
-        const vec3 p = ref_color(start);
-        if (getError(A, p) > error_treshold || getError(B, p) > error_treshold)
+        const vec3 p = ref_color(eb.start_node);
+        if (getError(eb.minpoint, p) > error_treshold || getError(eb.maxpoint, p) > error_treshold)
         {
           cout << "1:" << K << '\n';
           return false;
@@ -384,10 +371,10 @@ namespace ours_varbit {
       return true;
     }
     // Trivial block of length 2.
-    else if (range == 2 && K > 1)
+    else if (eb.range == 2 && K > 1)
     {
-      m_weights[start] = 0;
-      m_weights[start + 1] = K - 1;
+      m_weights[eb.start_node] = 0;
+      m_weights[eb.start_node + 1] = K - 1;
       if (max_error != nullptr)
       {
         *max_error = 0.0;
@@ -398,9 +385,9 @@ namespace ours_varbit {
       }
       if (DEBUG_ERROR)
       {
-        const vec3 p1 = ref_color(start);
-        const vec3 p2 = ref_color(start + 1);
-        if (getError(A, p1) > error_treshold || getError(B, p2) > error_treshold)
+        const vec3 p1 = ref_color(eb.start_node);
+        const vec3 p2 = ref_color(eb.start_node + 1);
+        if (getError(eb.minpoint, p1) > error_treshold || getError(eb.maxpoint, p2) > error_treshold)
         {
           cout << "2\n";
           return false;
@@ -420,7 +407,7 @@ namespace ours_varbit {
     // Multi color blocks.
     if (K > 1)
     {
-      for (std::size_t i = start; i < start + range; i++)
+      for (std::size_t i = eb.start_node; i < eb.start_node + eb.range; i++)
       {
         if (i >= original_colors_ref.size())
         {
@@ -428,13 +415,13 @@ namespace ours_varbit {
         }
         const vec3 p = ref_color(i);
 
-        // Since A and B can be extremely close, we need to bail out
+        // Since 'minpoint' and 'maxpoint' can be extremely close, we need to bail out
         // This is safe since we are talking about colors that will be equal when
         // truncated.
         const float distance =
-          length(B - A) < (1e-4f) ?
+          length(eb.maxpoint - eb.minpoint) < (1e-4f) ?
           0.0f :
-          dot(p - A, B - A) / dot(B - A, B - A);
+          dot(p - eb.minpoint, eb.maxpoint - eb.minpoint) / dot(eb.maxpoint - eb.minpoint, eb.maxpoint - eb.minpoint);
 
         auto calc_w = [&](const float distance)
         {
@@ -447,7 +434,7 @@ namespace ours_varbit {
         {
           const int max_w = K - 1;
           const float t = float(w) / float(max_w);
-          const vec3 interpolated_color = A + t * (B - A);
+          const vec3 interpolated_color = eb.minpoint + t * (eb.maxpoint - eb.minpoint);
           return getError(p, interpolated_color);
         };
 
@@ -486,7 +473,7 @@ namespace ours_varbit {
 
         const int w = best_w(distance);
         const float t = float(w) / float(K - 1);
-        vec3 interpolated_color = A + t * (B - A);
+        vec3 interpolated_color = eb.minpoint + t * (eb.maxpoint - eb.minpoint);
         double error = getError(p, interpolated_color);
 
         if (max_error != nullptr)
@@ -504,8 +491,8 @@ namespace ours_varbit {
             cout << "distance: " << distance << '\n';
             cout << "K-1: " << K - 1 << '\n';
             cout << "p: " << p.x << " " << p.y << " " << p.z << '\n';
-            cout << "A: " << A.x << " " << A.y << " " << A.z << '\n';
-            cout << "B: " << B.x << " " << B.y << " " << B.z << '\n';
+            cout << "eb.minpoint: " << eb.minpoint.x << " " << eb.minpoint.y << " " << eb.minpoint.z << '\n';
+            cout << "eb.maxpoint: " << eb.maxpoint.x << " " << eb.maxpoint.y << " " << eb.maxpoint.z << '\n';
             cout << "w: " << w << '\n';
             cout
               << "interpolated_color: "
@@ -523,14 +510,14 @@ namespace ours_varbit {
     // Single color blocks.
     else
     {
-	  for (std::size_t i = start; i < start + range; i++)
+	  for (std::size_t i = eb.start_node; i < eb.start_node + eb.range; i++)
       {
         if (i >= original_colors_ref.size())
         {
           cout << "YOU HAVE MESSED UP YOU SILLY GOOSE!\n";
         }
         const vec3 p = ref_color(i);
-        vec3 interpolated_color = A;
+        vec3 interpolated_color = eb.minpoint;
         double error = getError(p, interpolated_color);
         if (max_error != nullptr)
         {
@@ -551,12 +538,12 @@ namespace ours_varbit {
 
     if (mse != nullptr)
     {
-      *mse = static_cast<float>(msesum / double(range * 3));
+      *mse = static_cast<float>(msesum / double(eb.range * 3));
     }
 
     if (!bEval)
     {
-      cout << "3: " << start << " " << range << '\n';
+      cout << "3: " << eb.start_node << " " << eb.range << '\n';
     }
     return bEval;
   };
@@ -1020,17 +1007,9 @@ namespace ours_varbit {
     };
 
     double max_error_eval = numeric_limits<double>::lowest();
-    for (auto b : solution)
-    {
-      int vals_per_weight = 1 << b.bpw;
+    for (const auto &b : solution){
       double error;
-      bool should_be_true = assign_weights(b.start_node,
-                                           b.range,
-                                           b.minpoint,
-                                           b.maxpoint,
-                                           error_treshold,
-                                           vals_per_weight,
-                                           &error);
+      bool should_be_true = assign_weights(b, error_treshold, &error);
 
       max_error_eval = max(max_error_eval, error);
       if (!should_be_true)
