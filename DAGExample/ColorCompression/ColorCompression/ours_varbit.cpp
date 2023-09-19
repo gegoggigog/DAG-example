@@ -345,7 +345,8 @@ namespace ours_varbit {
                                         const float error_treshold,
                                         double* max_error,
                                         double* mse) {
-    int K = 1 << eb.bpw;;
+    //const int K = 1 << eb.bpw;
+    const int MAX_W = (1 << eb.bpw)-1;
     // Trivial block of length 1.
     if (eb.range == 1)
     {
@@ -364,17 +365,17 @@ namespace ours_varbit {
         const vec3 p = ref_color(eb.start_node);
         if (getError(eb.minpoint, p) > error_treshold || getError(eb.maxpoint, p) > error_treshold)
         {
-          cout << "1:" << K << '\n';
+          cout << "MAX_W 1:" << MAX_W << '\n';
           return false;
         }
       }
       return true;
     }
     // Trivial block of length 2.
-    else if (eb.range == 2 && K > 1)
+    else if (eb.range == 2 && MAX_W > 0)
     {
       m_weights[eb.start_node] = 0;
-      m_weights[eb.start_node + 1] = K - 1;
+      m_weights[eb.start_node + 1] = MAX_W;
       if (max_error != nullptr)
       {
         *max_error = 0.0;
@@ -405,7 +406,7 @@ namespace ours_varbit {
     double msesum = 0.0;
     bool bEval = true;
     // Multi color blocks.
-    if (K > 1)
+    if (MAX_W > 0)
     {
       for (std::size_t i = eb.start_node; i < eb.start_node + eb.range; i++)
       {
@@ -425,15 +426,13 @@ namespace ours_varbit {
 
         auto calc_w = [&](const float distance)
         {
-          const int max_w = K - 1;
-          const int w = static_cast<int>(round(distance * float(max_w)));
-          return min(max(w, 0), max_w);
+          const int w = static_cast<int>(round(distance * float(MAX_W)));
+          return min(max(w, 0), MAX_W);
         };
 
         auto error_w = [&](const int w)
         {
-          const int max_w = K - 1;
-          const float t = float(w) / float(max_w);
+          const float t = float(w) / float(MAX_W);
           const vec3 interpolated_color = eb.minpoint + t * (eb.maxpoint - eb.minpoint);
           return getError(p, interpolated_color);
         };
@@ -459,7 +458,7 @@ namespace ours_varbit {
           // Check against one higher weight.
           {
             const int w_hi = w + 1;
-            if (w_hi <= K - 1)
+            if (w_hi <= MAX_W)
             {
               const float this_error = error_w(w_hi);
               if (this_error < min_error)
@@ -472,7 +471,7 @@ namespace ours_varbit {
         };
 
         const int w = best_w(distance);
-        const float t = float(w) / float(K - 1);
+        const float t = float(w) / float(MAX_W);
         vec3 interpolated_color = eb.minpoint + t * (eb.maxpoint - eb.minpoint);
         double error = getError(p, interpolated_color);
 
@@ -489,7 +488,7 @@ namespace ours_varbit {
             bEval = false;
             cout << "i: " << i << '\n';
             cout << "distance: " << distance << '\n';
-            cout << "K-1: " << K - 1 << '\n';
+            cout << "MAX_W: " << MAX_W << '\n';
             cout << "p: " << p.x << " " << p.y << " " << p.z << '\n';
             cout << "eb.minpoint: " << eb.minpoint.x << " " << eb.minpoint.y << " " << eb.minpoint.z << '\n';
             cout << "eb.maxpoint: " << eb.maxpoint.x << " " << eb.maxpoint.y << " " << eb.maxpoint.z << '\n';
