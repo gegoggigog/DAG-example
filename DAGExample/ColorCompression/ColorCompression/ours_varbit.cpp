@@ -21,6 +21,18 @@ using namespace std;
 using glm::vec3;
 
 namespace ours_varbit {
+   struct block {
+       size_t start_node = 0xFFFFFFFF;
+       size_t range;
+       vec3 minpoint;
+       vec3 maxpoint;
+   };
+
+   struct block_score {
+       size_t my_total_bit_cost;
+       size_t best_total_bit_cost;
+   };
+
   struct end_block
   {
     using float3 = vec3;
@@ -553,7 +565,6 @@ namespace ours_varbit {
   };
 
   // Recursively prunes the score tree, and return the best cut.
-  template<typename end_block, typename block, typename block_score>
   vector<end_block> find_best_nodes(
     vector<vector<block>>& block_tree,
     vector<vector<block_score>>& score_tree,
@@ -564,7 +575,7 @@ namespace ours_varbit {
   {
     vector<end_block> result;
     block_score this_score = score_tree[bits_per_weight][block_idx];
-    if (this_score.best.total_bit_cost == this_score.my.total_bit_cost)
+    if (this_score.best_total_bit_cost == this_score.my_total_bit_cost)
     {
       // This blocks score is the best score, i.e., the memory overhead
       // of this block is less than the sum of it's children.
@@ -587,7 +598,7 @@ namespace ours_varbit {
       for (const auto& current_child : childs)
       {
         vector<end_block> best_blocks =
-          find_best_nodes<end_block>(
+          find_best_nodes(
             block_tree,
             score_tree,
             children,
@@ -691,14 +702,6 @@ namespace ours_varbit {
     }
 
     uploadColors(workingColorSet);
-
-    struct block {
-      size_t start_node = 0xFFFFFFFF;
-      size_t range;
-      vec3 minpoint;
-      vec3 maxpoint;
-      //bool dirty = true;
-    };
 
     vector<vector<block>> block_tree(max_bits_per_weight + 1);
     for(size_t bits_per_weight = min_bits_per_weight;
@@ -923,14 +926,6 @@ namespace ours_varbit {
 
     // It's time to compute the scores for all blocks.
     // We place this in a separate tree.
-    struct block_score
-    {
-      struct
-      {
-        size_t total_bit_cost;
-      } my, best;
-    };
-
     using ScoreVector = vector<block_score>;
     vector<ScoreVector> score_tree(block_tree.size());
     for (size_t i = 0; i < score_tree.size(); i++)
@@ -950,12 +945,12 @@ namespace ours_varbit {
         const block& b = block_tree[bits_per_weight][block_idx];
         block_score& s = score_tree[bits_per_weight][block_idx];
         const size_t total_bits = HEADER_COST + COLOR_COST + bits_per_weight * b.range;
-        s.my.total_bit_cost = total_bits;
+        s.my_total_bit_cost = total_bits;
         // Need to initialize the "best" cost for the leaves,
         // which will be used later to compute the parents costs.
         if (bits_per_weight == min_bits_per_weight)
         {
-          s.best.total_bit_cost = s.my.total_bit_cost;
+          s.best_total_bit_cost = s.my_total_bit_cost;
         }
       }
     }
@@ -978,12 +973,10 @@ namespace ours_varbit {
         size_t best_cost = 0;
         for (const auto& current_child : childs)
         {
-          best_cost +=
-            score_tree[bits_per_weight - 1][current_child].best.total_bit_cost;
-          total_cost +=
-            score_tree[bits_per_weight - 1][current_child].my.total_bit_cost;
+          best_cost  += score_tree[bits_per_weight - 1][current_child].best_total_bit_cost;
+          total_cost += score_tree[bits_per_weight - 1][current_child].my_total_bit_cost;
         }
-        s.best.total_bit_cost = min(best_cost, s.my.total_bit_cost);
+        s.best_total_bit_cost = min(best_cost, s.my_total_bit_cost);
       }
     }
 
@@ -993,14 +986,7 @@ namespace ours_varbit {
          parent_block < block_tree[max_bits_per_weight].size();
          parent_block++)
     {
-      vector<end_block> tmp =
-        find_best_nodes<end_block, block, block_score>(
-          block_tree,
-          score_tree,
-          children,
-          max_bits_per_weight,
-          parent_block
-          );
+      vector<end_block> tmp = find_best_nodes(block_tree, score_tree, children, max_bits_per_weight, parent_block);
       solution.insert(solution.end(), tmp.begin(), tmp.end());
     }
 
