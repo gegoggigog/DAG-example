@@ -33,18 +33,15 @@ namespace ours_varbit {
        size_t best_total_bit_cost;
    };
 
-  struct end_block
-  {
-    using float3 = vec3;
-    float3 minpoint;
-    float3 maxpoint;
+  struct end_block {
+    vec3 minpoint;
+    vec3 maxpoint;
     uint32_t bpw;
     size_t start_node;
     size_t range;
   };
 
-  struct CompressionInfo
-  {
+  struct CompressionInfo {
     vector<int> wrong_colors;
     vector<int> ok_colors;
     std::size_t total_bits = 0;
@@ -1079,8 +1076,8 @@ namespace ours_varbit {
         case R_8: {
           uint32_t minC = float3_to_r8(b.minpoint);
           uint32_t maxC = float3_to_r8(b.maxpoint);
-          h_block_colors.push_back((minC & (0xFF << 0)) >> 0);
-          h_block_colors.push_back((maxC & (0xFF << 0)) >> 0);
+          h_block_colors.push_back(minC & 0xFF);
+          h_block_colors.push_back(maxC & 0xFF);
           break;
         }
         case RG_8_8: {
