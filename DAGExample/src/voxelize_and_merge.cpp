@@ -150,11 +150,11 @@ std::optional<dag::DAG> DAG_from_scene(const int dag_resolution, const std::stri
 
 	// Map the resources on the GPU
 	cudaGraphicsResource *cuda_position_resource;
+	uint64_t *d_positions{nullptr};
 #ifdef DAG_COLORS
 	cudaGraphicsResource *cuda_base_color_resource;
 	uint32_t *d_base_color{nullptr};
 #endif
-	uint64_t *d_positions{nullptr};
 
 	auto map_and_register = [](GLuint ssbo, cudaGraphicsResource *&resource, auto *&dev_ptr){
 		std::size_t num_bytes{0};

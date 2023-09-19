@@ -148,6 +148,7 @@ int main(int argc, char* argv[]) {
 		constexpr int dag_resolution = 1 << 8;
 		std::cout << "Resolution: " << dag_resolution << '\n';
 		auto optional_dag = DAG_from_scene(dag_resolution, R"(C:\Users\dan\garbage_collector\DAG_Compression\assets\Sponza\glTF\)", "Sponza.gltf");
+		//auto optional_dag = DAG_from_scene(dag_resolution, R"(C:\Users\dan\garbage_collector\gltf_fh\)", "helmet.gltf");
 		if (!optional_dag) {
 			std::cerr << "Could not construct dag, assert file path.";
 			exit(-1);
@@ -155,14 +156,14 @@ int main(int argc, char* argv[]) {
 		return *optional_dag;
 	}();
 
-	write_vector_to_disc(raw_color_file, dag.m_base_colors);
-	ours_varbit::OursData compressed_color = ours_varbit::compressColors(disc_vector<uint32_t>{ raw_color_file, macro_block_size }, 0.05f, ColorLayout::RGB_5_6_5);
-
 	DAGTracer dag_tracer;
 	dag_tracer.resize(screen_dim.x, screen_dim.y);
-
-	upload_to_gpu(compressed_color, &dag_tracer.m_compressed_colors);
 	upload_to_gpu(dag);
+#ifdef DAG_COLORS
+	write_vector_to_disc(raw_color_file, dag.m_base_colors);
+	ours_varbit::OursData compressed_color = ours_varbit::compressColors(disc_vector<uint32_t>{ raw_color_file, macro_block_size }, 0.05f, ColorLayout::RGB_5_6_5);
+	upload_to_gpu(compressed_color, &dag_tracer.m_compressed_colors);
+#endif
 
 	while (!glfwWindowShouldClose(window))
 	{

@@ -7,9 +7,9 @@
 constexpr uint64_t macro_block_size = 16ull * 1024ull;
 namespace ours_varbit {
   struct OursData {
+    ColorLayout color_layout;
     uint64_t nof_blocks = 0;
     uint64_t nof_colors = 0;
-    ColorLayout color_layout;
     std::vector<uint32_t> h_block_headers;
     std::vector<uint8_t>  h_block_colors;
     std::vector<uint32_t> h_weights;

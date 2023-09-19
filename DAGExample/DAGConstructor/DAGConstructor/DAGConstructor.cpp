@@ -68,8 +68,9 @@ std::optional<dag::DAG> DAGConstructor::generate_DAG(GetVoxelFunction get_voxels
 			cuda_builder->upload_colors(voxels.base_color, voxels.count);
 #endif
 			dags[i] = cuda_builder->build_dag(voxels.count, LevelsExcluding64BitLeafs, aabb);
-
+#ifdef DAG_COLORS
 			total_unique_count += dags[i] ? (*dags[i]).m_base_colors.size() : 0ull;
+#endif
 		}
 	}
 	const auto DAGTimeDone = std::chrono::high_resolution_clock::now();

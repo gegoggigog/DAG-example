@@ -88,7 +88,9 @@ void DAGConstructor_impl::upload_path(uint64_t* pos, int count) {
 }
 
 void DAGConstructor_impl::upload_colors(uint32_t* col, int count) {
+#ifdef DAG_COLORS
 	copy_to_device(this->base_color, col, count);
+#endif
 }
 
 uint32_t count_child_nodes(int lvl, int bottomlevel, uint32_t node_idx, std::vector<std::vector<uint32_t>> *dag) {

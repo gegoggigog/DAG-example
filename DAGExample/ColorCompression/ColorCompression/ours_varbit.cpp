@@ -86,6 +86,17 @@ namespace ours_varbit {
     const int BPW_ID_COST     = 2;
     const int HEADER_COST     = 32;
 
+    ColorLayout compression_layout;
+    const float error_treshold;
+
+    disc_vector<uint32_t> original_colors_ref;
+    vector<uint32_t> m_weights;
+
+    vector<uint32_t> h_weights;
+    vector<uint32_t> h_block_headers;
+    vector<uint8_t> h_block_colors;
+    vector<uint64_t> h_macro_block_headers;
+
     explicit CompressionState(disc_vector<uint32_t>&& original_colors, const float error_treshold_, const ColorLayout layout)
       : COLOR_COST{getColorCost(layout)}
       , original_colors_ref{ std::move(original_colors) }
@@ -128,27 +139,16 @@ namespace ours_varbit {
     {
       switch (compression_layout)
       {
-      case R_8:
-      case R_4:
-        return r8_to_float3(original_colors_ref[start]);
-      case RG_8_8:
-        return rg88_to_float3(original_colors_ref[start]);
-      case RGB_5_6_5:
-      default:
-        return rgb888_to_float3(original_colors_ref[start]);
+        case R_8:
+        case R_4:
+            return r8_to_float3(original_colors_ref[start]);
+        case RG_8_8:
+            return rg88_to_float3(original_colors_ref[start]);
+        case RGB_5_6_5:
+        default:
+            return rgb888_to_float3(original_colors_ref[start]);
       }
     };
-
-    ColorLayout compression_layout;
-    const float error_treshold;
-
-    disc_vector<uint32_t> original_colors_ref;
-    vector<uint32_t> m_weights;
-
-    vector<uint32_t> h_weights;
-    vector<uint32_t> h_block_headers;
-    vector<uint8_t> h_block_colors;
-    vector<uint64_t> h_macro_block_headers;
   };
 
   bool
