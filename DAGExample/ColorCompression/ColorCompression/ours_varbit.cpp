@@ -1022,9 +1022,7 @@ namespace ours_varbit {
     const int max_bits_per_weigth = (int)log2(K);
     const int min_bits_per_weigth = 0;
 
-    auto header_compressor =
-      [](size_t local_start_color, size_t local_w_bptr, int bitrate)
-    {
+    auto header_compressor = [](size_t local_start_color, size_t local_w_bptr, int bitrate) {
       uint32_t header = 0;
       header |= local_start_color; // bit: 0 - 13
 
@@ -1047,16 +1045,13 @@ namespace ours_varbit {
     {
       int vals_per_weight = 1 << b.bpw;
       double error;
-      bool should_be_true =
-        assign_weights(
-          b.start_node,
-          b.range,
-          b.minpoint,
-          b.maxpoint,
-          error_treshold,
-          vals_per_weight,
-          &error
-        );
+      bool should_be_true = assign_weights(b.start_node,
+                                           b.range,
+                                           b.minpoint,
+                                           b.maxpoint,
+                                           error_treshold,
+                                           vals_per_weight,
+                                           &error);
 
       max_error_eval = max(max_error_eval, error);
       if (!should_be_true)
