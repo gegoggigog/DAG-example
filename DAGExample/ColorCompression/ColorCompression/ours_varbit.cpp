@@ -979,9 +979,6 @@ namespace ours_varbit {
     vector<int>& ok_colors
   )
   {
-    const int max_bits_per_weigth = (int)log2(K);
-    const int min_bits_per_weigth = 0;
-
     auto header_compressor = [](size_t local_start_color, size_t local_w_bptr, int bitrate) {
       uint32_t header = 0;
       header |= local_start_color; // bit: 0 - 13
