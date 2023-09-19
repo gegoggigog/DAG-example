@@ -109,7 +109,7 @@ namespace ours_varbit {
       h_weights.resize((bits_required + 31)/32);
     }
 
-    tuple<CompressionInfo, OursData> compress();
+    void compress(OursData* p_data, CompressionInfo *p_nfo = nullptr);
 
     vector<end_block> compress_range(size_t part_start, size_t part_size);
 
@@ -638,15 +638,16 @@ namespace ours_varbit {
     }
   }
   // Compress colors using CUDA.
-  std::tuple<CompressionInfo, OursData> CompressionState::compress()
+  void CompressionState::compress(OursData* p_data, CompressionInfo* p_nfo)
   {
-    CompressionInfo nfo;
-    OursData ours_dat;
-    nfo.wrong_colors.resize(max_bits_per_weight + 1, 0);
-    nfo.ok_colors.resize(max_bits_per_weight + 1, 0);
+    auto& data = *p_data;
+    auto& nfo  = *p_nfo;
+    
+    std::vector<int> wrong_colors(max_bits_per_weight + 1, 0);
+    std::vector<int> ok_colors(max_bits_per_weight + 1, 0);
 
     const std::size_t n_colors = original_colors_ref.size();
-	const std::size_t n_mb     = (n_colors + macro_block_size - 1) / macro_block_size;
+    const std::size_t n_mb     = (n_colors + macro_block_size - 1) / macro_block_size;
 
     size_t global_bptr = 0;
     size_t macro_w_bptr = 0;
@@ -663,8 +664,8 @@ namespace ours_varbit {
         double max_error_eval = add_to_final(solution,
                                             global_bptr,
                                             macro_w_bptr,
-                                            nfo.wrong_colors,
-                                            nfo.ok_colors);
+                                            wrong_colors,
+                                            ok_colors);
         n_blocks += solution.size();
 
         // Info
@@ -677,29 +678,32 @@ namespace ours_varbit {
     h_weights.resize((global_bptr + 31) / 32);
 
     // Write optional info
-    nfo.weights_size      = h_weights.size()             * sizeof(uint32_t);
-    nfo.macro_header_size = h_macro_block_headers.size() * sizeof(uint64_t);
-    nfo.headers_size      = h_block_headers.size()       * sizeof(uint32_t);
-    nfo.colors_size       = h_block_colors.size()        * sizeof(uint8_t);
-    const size_t n_channels = compression_layout == RGB_5_6_5 ? 3 :
-                              compression_layout == RG_8_8    ? 2 :
-                              compression_layout == R_8       ? 1 : 1;
-    nfo.error_threshold  = error_treshold;
-    nfo.nof_blocks       = n_blocks;
-    nfo.nof_colors       = n_colors;
-    nfo.bytes_raw        = n_colors * n_channels;
-    nfo.bytes_compressed = nfo.headers_size + nfo.colors_size + nfo.weights_size + nfo.macro_header_size;
-    nfo.compression      = static_cast<double>(nfo.bytes_compressed) / static_cast<double>(nfo.bytes_raw);
+    if(p_nfo){
+        nfo.wrong_colors      = std::move(wrong_colors);
+        nfo.ok_colors         = std::move(ok_colors);
+        nfo.weights_size      = h_weights.size()             * sizeof(uint32_t);
+        nfo.macro_header_size = h_macro_block_headers.size() * sizeof(uint64_t);
+        nfo.headers_size      = h_block_headers.size()       * sizeof(uint32_t);
+        nfo.colors_size       = h_block_colors.size()        * sizeof(uint8_t);
+        const size_t n_channels = compression_layout == RGB_5_6_5 ? 3 :
+                                  compression_layout == RG_8_8    ? 2 :
+                                  compression_layout == R_8       ? 1 : 1;
+        nfo.error_threshold  = error_treshold;
+        nfo.nof_blocks       = n_blocks;
+        nfo.nof_colors       = n_colors;
+        nfo.bytes_raw        = n_colors * n_channels;
+        nfo.bytes_compressed = nfo.headers_size + nfo.colors_size + nfo.weights_size + nfo.macro_header_size;
+        nfo.compression      = static_cast<double>(nfo.bytes_compressed) / static_cast<double>(nfo.bytes_raw);
+    }
 
-    // Write essential result
-    ours_dat.nof_blocks       = n_blocks;
-    ours_dat.nof_colors       = n_colors;
-    ours_dat.h_block_headers  = std::move(h_block_headers);
-    ours_dat.h_block_colors   = std::move(h_block_colors);
-    ours_dat.h_weights        = std::move(h_weights);
-    ours_dat.h_macro_w_offset = std::move(h_macro_block_headers);
-    ours_dat.color_layout     = compression_layout;
-    return { nfo, ours_dat };
+    // Write essential data
+    data.nof_blocks       = n_blocks;
+    data.nof_colors       = n_colors;
+    data.h_block_headers  = std::move(h_block_headers);
+    data.h_block_colors   = std::move(h_block_colors);
+    data.h_weights        = std::move(h_weights);
+    data.h_macro_w_offset = std::move(h_macro_block_headers);
+    data.color_layout     = compression_layout;
   }
 
   vector<end_block> CompressionState::compress_range(size_t part_start, size_t part_size)
@@ -1232,14 +1236,12 @@ namespace ours_varbit {
            << " (" << nfo.compression * 100.0f << "%).\n";
   }
 
-  OursData
-    compressColors(
-      disc_vector<uint32_t>&& original_colors,
-      const float error_treshold,
-      const ColorLayout layout
-    )
-  {
-    auto[nfo, result] = CompressionState{ std::move(original_colors), error_treshold, layout }.compress();
+  OursData compressColors(disc_vector<uint32_t>&& original_colors,
+                          const float error_treshold,
+                          const ColorLayout layout) {
+    OursData result;
+    CompressionInfo nfo;
+    CompressionState{ std::move(original_colors), error_treshold, layout }.compress(&result, &nfo);
     printCompressionResults(nfo, result);
     return result;
   }
