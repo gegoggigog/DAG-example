@@ -549,14 +549,11 @@ namespace ours_varbit {
   };
 
   // Recursively prunes the score tree, and return the best cut.
-  vector<end_block> find_best_nodes(
-    vector<vector<block>>& block_tree,
-    vector<vector<block_score>>& score_tree,
-    vector<vector<vector<uint32_t>>>& children,
-    size_t bits_per_weight,
-    size_t block_idx
-  )
-  {
+  vector<end_block> find_best_nodes(vector<vector<block>>            &block_tree,
+                                    vector<vector<block_score>>      &score_tree,
+                                    vector<vector<vector<uint32_t>>> &children,
+                                    size_t bits_per_weight,
+                                    size_t block_idx) {
     vector<end_block> result;
     block_score this_score = score_tree[bits_per_weight][block_idx];
     if (this_score.best_total_bit_cost == this_score.my_total_bit_cost)
@@ -566,11 +563,11 @@ namespace ours_varbit {
       // So keep this block, and prune the children.
       block this_block = block_tree[bits_per_weight][block_idx];
       end_block eb;
-      eb.minpoint = this_block.minpoint;
-      eb.maxpoint = this_block.maxpoint;
-      eb.bpw = uint32_t(bits_per_weight);
+      eb.minpoint   = this_block.minpoint;
+      eb.maxpoint   = this_block.maxpoint;
+      eb.bpw        = uint32_t(bits_per_weight);
       eb.start_node = this_block.start_node;
-      eb.range = this_block.range;
+      eb.range      = this_block.range;
       result.push_back(eb);
     }
     else
@@ -581,14 +578,11 @@ namespace ours_varbit {
       const auto& childs = children[bits_per_weight][block_idx];
       for (const auto& current_child : childs)
       {
-        vector<end_block> best_blocks =
-          find_best_nodes(
-            block_tree,
-            score_tree,
-            children,
-            bits_per_weight - 1,
-            current_child
-            );
+        vector<end_block> best_blocks = find_best_nodes(block_tree,
+                                                        score_tree,
+                                                        children,
+                                                        bits_per_weight - 1,
+                                                        current_child);
         result.insert(result.end(), best_blocks.begin(), best_blocks.end());
       }
     }
