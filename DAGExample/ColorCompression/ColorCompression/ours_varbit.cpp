@@ -692,18 +692,12 @@ namespace ours_varbit {
 
     uploadColors(workingColorSet);
 
-    struct block
-    {
-      block() : start_node(0xBADC0DE) {};
-      block(size_t start, size_t rng)
-        : start_node(start)
-        , range(rng)
-        , dirty(true) {};
-      size_t start_node;
+    struct block {
+      size_t start_node = 0xFFFFFFFF;
       size_t range;
       vec3 minpoint;
       vec3 maxpoint;
-      bool dirty;
+      //bool dirty = true;
     };
 
     vector<vector<block>> block_tree(max_bits_per_weight + 1);
@@ -871,7 +865,9 @@ namespace ours_varbit {
         // Insert the blocks into our block tree.
         for (size_t i = 0; i < buildBlocks.size(); i++)
         {
-          block tmp(buildBlocks[i].blockStart + part_start, buildBlocks[i].blockLength);
+          block tmp; //(buildBlocks[i].blockStart + part_start, buildBlocks[i].blockLength);
+          tmp.start_node = buildBlocks[i].blockStart + part_start;
+          tmp.range      = buildBlocks[i].blockLength;
           tmp.minpoint = vec3(
             colorRanges[2 * i + 0].x,
             colorRanges[2 * i + 0].y,
