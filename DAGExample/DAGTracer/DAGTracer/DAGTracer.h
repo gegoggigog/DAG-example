@@ -56,7 +56,7 @@ private:
 void upload_to_gpu(dag::DAG &dag);
 
 struct ColorData {
-  uint64_t *d_macro_w_offset;
+  uint64_t *d_macro_block_headers;
   uint32_t *d_block_headers;
   uint8_t *d_block_colors;
   uint32_t *d_weights;

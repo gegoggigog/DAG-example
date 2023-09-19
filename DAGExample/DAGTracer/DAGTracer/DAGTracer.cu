@@ -692,8 +692,8 @@ color_lookup_kernel_morton(
     constexpr uint32_t voxel_index_mask = colors_per_macro_block - 1;
     constexpr uint32_t header_size = 1;
     const uint32_t macro_block_count = (color_data.nof_colors + colors_per_macro_block - 1) / colors_per_macro_block;
-#define block_idx_macro (uint32_t)color_data.d_macro_w_offset[2 * macro_block_idx + 0]
-#define w_bptr_macro color_data.d_macro_w_offset[2 * macro_block_idx + 1]
+#define block_idx_macro (uint32_t)color_data.d_macro_block_headers[2 * macro_block_idx + 0]
+#define w_bptr_macro color_data.d_macro_block_headers[2 * macro_block_idx + 1]
     int position;
 
     uint32_t lowerbound;
@@ -719,7 +719,7 @@ color_lookup_kernel_morton(
     const uint32_t macro_block_idx = final_color_idx / colors_per_macro_block;
     lowerbound = block_idx_macro;
     upperbound = (macro_block_idx < macro_block_count - 1) ?
-      color_data.d_macro_w_offset[2 * macro_block_idx + 2] - 1 :
+      color_data.d_macro_block_headers[2 * macro_block_idx + 2] - 1 :
       color_data.nof_blocks - 1;
 
 
@@ -820,7 +820,7 @@ color_lookup_kernel_morton(
 	//};
 	//	  lowerbound = block_idx_macro;
  //   upperbound = (macro_block_idx < macro_block_count - 1) ?
- //     color_data.d_macro_w_offset[2 * macro_block_idx + 2] - 1 :
+ //     color_data.d_macro_block_headers[2 * macro_block_idx + 2] - 1 :
  //     color_data.nof_blocks - 1;
 	//color = murmurhash(weight);
 

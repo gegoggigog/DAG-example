@@ -697,13 +697,13 @@ namespace ours_varbit {
     }
 
     // Write essential data
-    data.nof_blocks       = n_blocks;
-    data.nof_colors       = n_colors;
-    data.h_block_headers  = std::move(h_block_headers);
-    data.h_block_colors   = std::move(h_block_colors);
-    data.h_weights        = std::move(h_weights);
-    data.h_macro_w_offset = std::move(h_macro_block_headers);
-    data.color_layout     = compression_layout;
+    data.nof_blocks            = n_blocks;
+    data.nof_colors            = n_colors;
+    data.h_block_headers       = std::move(h_block_headers);
+    data.h_block_colors        = std::move(h_block_colors);
+    data.h_weights             = std::move(h_weights);
+    data.h_macro_block_headers = std::move(h_macro_block_headers);
+    data.color_layout          = compression_layout;
   }
 
   vector<end_block> CompressionState::compress_range(size_t part_start, size_t part_size)

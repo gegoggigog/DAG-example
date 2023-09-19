@@ -48,7 +48,7 @@ namespace ours_varbit
       cereal::make_nvp("block_headers", data.h_block_headers),
       cereal::make_nvp("block_colors", data.h_block_colors),
       cereal::make_nvp("weights", data.h_weights),
-      cereal::make_nvp("macro_w_offset", data.h_macro_w_offset)
+      cereal::make_nvp("macro_w_offset", data.h_macro_block_headers)
     );
   }
 } // namespace ours_varbit 

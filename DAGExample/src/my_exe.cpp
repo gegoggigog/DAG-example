@@ -74,15 +74,15 @@ void free_gpu(ColorData* dst) {
 	free_and_clear_cudaptr(dst->d_block_headers);
 	free_and_clear_cudaptr(dst->d_block_colors);
 	free_and_clear_cudaptr(dst->d_weights);
-	free_and_clear_cudaptr(dst->d_macro_w_offset);
+	free_and_clear_cudaptr(dst->d_macro_block_headers);
 }
 
 void upload_to_gpu(const ours_varbit::OursData& src, ColorData *dst) {
 	free_gpu(dst);
-	upload_vector(src.h_block_headers,  dst->d_block_headers);
-	upload_vector(src.h_block_colors,   dst->d_block_colors);
-	upload_vector(src.h_weights,        dst->d_weights);
-	upload_vector(src.h_macro_w_offset, dst->d_macro_w_offset);
+	upload_vector(src.h_block_headers,       dst->d_block_headers);
+	upload_vector(src.h_block_colors,        dst->d_block_colors);
+	upload_vector(src.h_weights,             dst->d_weights);
+	upload_vector(src.h_macro_block_headers, dst->d_macro_block_headers);
 	dst->nof_blocks = src.nof_blocks;
 	dst->nof_colors = src.nof_colors;
 }
