@@ -9,6 +9,8 @@ include_directories(src)
 include_directories(DAGLoader)
 include_directories(DAGTracer)
 
+#find_package(OpenMP)
+
 add_library(CommonCompilerFlags INTERFACE)
 target_compile_options(CommonCompilerFlags 
     INTERFACE 
@@ -84,6 +86,7 @@ target_link_libraries(ColorCompression
     PRIVATE
         Tracy::TracyClient
         CommonCompilerFlags
+        #OpenMP::OpenMP_CXX
 )
 set_target_properties(ColorCompression
     PROPERTIES

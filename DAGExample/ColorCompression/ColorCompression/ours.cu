@@ -8,9 +8,9 @@
 #include <cfloat>
 #include "BlockBuild.h"
 
-float3* g_dev_colors = nullptr;
-uint8_t* g_dev_weights = nullptr;
-size_t g_numColors = 0;
+thread_local float3* g_dev_colors = nullptr;
+thread_local uint8_t* g_dev_weights = nullptr;
+thread_local size_t g_numColors = 0;
 
 
 float __device__ rand_lut[64] = {

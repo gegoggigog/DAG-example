@@ -399,9 +399,10 @@ namespace ours_varbit {
         cout << '\n';
     }
   }
+
   // Compress colors using CUDA.
   void CompressionState::compress(OursData* p_data, CompressionInfo* p_nfo)
-  {;   
+  {
     std::vector<int> wrong_colors(max_bits_per_weight + 1, 0);
     std::vector<int> ok_colors(max_bits_per_weight + 1, 0);
 
@@ -413,11 +414,10 @@ namespace ours_varbit {
     size_t global_bptr = 0;
     size_t macro_w_bptr = 0;
     size_t n_blocks = 0;
-    vector<uint32_t> tmp_weights;
-    tmp_weights.resize(n_colors);
 
     vector<end_block> solution;
     auto startTime = std::chrono::high_resolution_clock::now();
+    // TODO: Can do this in parallel. Note that we need some thread local variables in ours.cu...
     for (std::size_t mb_idx = 0; mb_idx < n_mb; mb_idx++)
     {
         printProgression(mb_idx, n_mb, h_block_headers.size(), startTime);
@@ -428,7 +428,10 @@ namespace ours_varbit {
         solution.insert(solution.end(), tmp.begin(), tmp.end());
         //n_blocks += solution.size();
     }
+
     // NOTE: Can also do this inside compress range for-loop
+    vector<uint32_t> tmp_weights;
+    tmp_weights.resize(n_colors);
     double max_error_eval = append_macro_block(solution, global_bptr, macro_w_bptr, tmp_weights, wrong_colors, ok_colors);
     if (p_nfo) {
         for (const auto& b : solution) {
