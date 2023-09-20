@@ -114,7 +114,7 @@ namespace ours_varbit {
       vector<int>& ok_colors
     );
 
-    bool assign_weights(const end_block &eb,
+    void assign_weights(const end_block &eb,
                         std::vector<uint32_t>& m_weights,
                         double* max_error = nullptr,
                         double* mse = nullptr);
@@ -763,79 +763,47 @@ namespace ours_varbit {
 // Evaluate if a range of colors can be represented as interpolations of
 // two given min and max points, and update the corresponding weights.
 ///////////////////////////////////////////////////////////////////////////
-  bool CompressionState::assign_weights(const end_block& eb,
+  void CompressionState::assign_weights(const end_block& eb,
                                         std::vector<uint32_t> &tmp_weights,
                                         double* max_error,
                                         double* mse) {
       const int max_w = (1 << eb.bpw) - 1;
+      if (max_error != nullptr) {
+          *max_error = 0.0;
+      }
+      if (mse != nullptr) {
+          *mse = 0.0f;
+      }
       // Trivial block of length 1.
-      if (eb.range == 1)
-      {
+      if (eb.range == 1) {
           tmp_weights[eb.start_node] = 0;
-          if (max_error != nullptr)
-          {
-              *max_error = 0.0;
-          }
-          if (mse != nullptr)
-          {
-              *mse = 0.0f;
-          }
-
-          if (DEBUG_ERROR)
-          {
-              const vec3 p = ref_color(eb.start_node);
-              if (getError(eb.minpoint, p) > error_treshold_ || getError(eb.maxpoint, p) > error_treshold_)
-              {
-                  cout << "max_w 1:" << max_w << '\n';
-                  return false;
-              }
-          }
-          return true;
+          return;
       }
       // Trivial block of length 2.
-      else if (eb.range == 2 && max_w > 0)
-      {
+      else if (eb.range == 2 && max_w > 0) {
           tmp_weights[eb.start_node] = 0;
           tmp_weights[eb.start_node + 1] = max_w;
-          if (max_error != nullptr)
-          {
-              *max_error = 0.0;
-          }
-          if (mse != nullptr)
-          {
-              *mse = 0.0f;
-          }
-          if (DEBUG_ERROR)
-          {
-              const vec3 p1 = ref_color(eb.start_node);
-              const vec3 p2 = ref_color(eb.start_node + 1);
-              if (getError(eb.minpoint, p1) > error_treshold_ || getError(eb.maxpoint, p2) > error_treshold_)
-              {
-                  cout << "2\n";
-                  return false;
-              }
-          }
-          return true;
-      }
-
-      // Blocks of non-trivial configurations.
-      if (max_error != nullptr)
-      {
-          *max_error = numeric_limits<double>::lowest();
+          return;
       }
 
       double msesum = 0.0;
-      bool bEval = true;
-      // Multi color blocks.
-      if (max_w > 0)
-      {
-          for (std::size_t i = eb.start_node; i < eb.start_node + eb.range; i++)
-          {
-              if (i >= original_colors_.size())
-              {
-                  cout << "YOU HAVE MESSED UP YOU SILLY GOOSE!\n";
-              }
+      auto write_error = [&](int w, std::size_t i) {
+          if (max_error != nullptr || mse != nullptr) {
+              const float t = float(w) / float(max_w);
               const vec3 p = ref_color(i);
+              const vec3 interpolated_color = eb.minpoint + t * (eb.maxpoint - eb.minpoint);
+              if (max_error != nullptr) {
+                  *max_error = std::max<double>(*max_error, getError(p, interpolated_color));
+              }
+              if (mse != nullptr) {
+                  msesum += getErrorSquared(p, interpolated_color);
+              }
+          }
+      };
+      // Multi color blocks.
+      if (max_w > 0) {
+          for (std::size_t i = eb.start_node; i < eb.start_node + eb.range; i++) {
+              const vec3 original_color = ref_color(i);
 
               // Since 'minpoint' and 'maxpoint' can be extremely close, we need to bail out
               // This is safe since we are talking about colors that will be equal when
@@ -843,129 +811,58 @@ namespace ours_varbit {
               const float distance =
                   length(eb.maxpoint - eb.minpoint) < (1e-4f) ?
                   0.0f :
-                  dot(p - eb.minpoint, eb.maxpoint - eb.minpoint) / dot(eb.maxpoint - eb.minpoint, eb.maxpoint - eb.minpoint);
+                  dot(original_color - eb.minpoint, eb.maxpoint - eb.minpoint) / dot(eb.maxpoint - eb.minpoint, eb.maxpoint - eb.minpoint);
 
-              auto calc_w = [&](const float distance)
-                  {
+              auto calc_w = [&](const float distance) {
                       const int w = static_cast<int>(round(distance * float(max_w)));
                       return min(max(w, 0), max_w);
-                  };
+              };
 
-              auto error_w = [&](const int w)
-                  {
+              auto error_w = [&](const int w) {
                       const float t = float(w) / float(max_w);
                       const vec3 interpolated_color = eb.minpoint + t * (eb.maxpoint - eb.minpoint);
-                      return getError(p, interpolated_color);
-                  };
+                      return getError(original_color, interpolated_color);
+              };
 
-              auto best_w = [&](float distance)
-                  {
+              auto best_w = [&](float distance) {
                       const int w = calc_w(distance);
                       float min_error = error_w(w);
                       int result = w;
-                      // Check against one lower weight.
-                      {
-                          const int w_lo = w - 1;
-                          if (w_lo >= 0)
-                          {
-                              const float this_error = error_w(w_lo);
-                              if (this_error < min_error)
-                              {
-                                  min_error = this_error;
-                                  result = w_lo;
-                              }
+                      // Check against one lower weight.    
+                      if (const int w_lo = w - 1; w_lo >= 0) {
+                          const float this_error = error_w(w_lo);
+                          if (this_error < min_error) {
+                              min_error = this_error;
+                              result = w_lo;
                           }
                       }
                       // Check against one higher weight.
-                      {
-                          const int w_hi = w + 1;
-                          if (w_hi <= max_w)
-                          {
-                              const float this_error = error_w(w_hi);
-                              if (this_error < min_error)
-                              {
-                                  result = w_hi;
-                              }
+                      if (const int w_hi = w + 1; w_hi <= max_w) {
+                          const float this_error = error_w(w_hi);
+                          if (this_error < min_error) {
+                              result = w_hi;
                           }
                       }
                       return result;
-                  };
+              };
 
               const int w = best_w(distance);
-              const float t = float(w) / float(max_w);
-              vec3 interpolated_color = eb.minpoint + t * (eb.maxpoint - eb.minpoint);
-              double error = getError(p, interpolated_color);
-
-              if (max_error != nullptr)
-              {
-                  *max_error = std::max(*max_error, error);
-              }
-              msesum += getErrorSquared(p, interpolated_color);
-
-              if (DEBUG_ERROR)
-              {
-                  if (error > error_treshold_)
-                  {
-                      bEval = false;
-                      cout << "i: " << i << '\n';
-                      cout << "distance: " << distance << '\n';
-                      cout << "max_w: " << max_w << '\n';
-                      cout << "p: " << p.x << " " << p.y << " " << p.z << '\n';
-                      cout << "eb.minpoint: " << eb.minpoint.x << " " << eb.minpoint.y << " " << eb.minpoint.z << '\n';
-                      cout << "eb.maxpoint: " << eb.maxpoint.x << " " << eb.maxpoint.y << " " << eb.maxpoint.z << '\n';
-                      cout << "w: " << w << '\n';
-                      cout
-                          << "interpolated_color: "
-                          << interpolated_color.x << " "
-                          << interpolated_color.y << " "
-                          << interpolated_color.z << '\n';
-                      cout << "error(corrected): " << error << '\n';
-                      cout << "error(plain): " << length(p - interpolated_color) << '\n';
-                      cout << "-----------" << '\n';
-                  }
-              }
               tmp_weights[i] = w;
+              write_error(w, i);
           }
       }
       // Single color blocks.
-      else
-      {
-          for (std::size_t i = eb.start_node; i < eb.start_node + eb.range; i++)
-          {
-              if (i >= original_colors_.size())
-              {
-                  cout << "YOU HAVE MESSED UP YOU SILLY GOOSE!\n";
-              }
-              const vec3 p = ref_color(i);
-              vec3 interpolated_color = eb.minpoint;
-              double error = getError(p, interpolated_color);
-              if (max_error != nullptr)
-              {
-                  *max_error = std::max(*max_error, error);
-              }
-
-              msesum += getErrorSquared(p, interpolated_color);
-              if (DEBUG_ERROR)
-              {
-                  if (error > error_treshold_)
-                  {
-                      bEval = false;
-                  }
-              }
+      else {
+          for (std::size_t i = eb.start_node; i < eb.start_node + eb.range; i++) {
               tmp_weights[i] = 0;
+              write_error(0, i);
           }
       }
 
-      if (mse != nullptr)
-      {
+      if (mse != nullptr) {
           *mse = static_cast<float>(msesum / double(eb.range * 3));
       }
-
-      if (!bEval)
-      {
-          cout << "3: " << eb.start_node << " " << eb.range << '\n';
-      }
-      return bEval;
+      return;
   }
 
   double CompressionState::append_macro_block(
@@ -973,8 +870,8 @@ namespace ours_varbit {
     size_t& global_bptr,
     size_t& macro_w_bptr,
     std::vector<uint32_t>& tmp_weights,
-    vector<int>& wrong_colors,
-    vector<int>& ok_colors
+    vector<int>& wrong_blocks,
+    vector<int>& correct_blocks
   )
   {
     auto header_compressor = [](size_t local_start_color, size_t local_w_bptr, int bitrate) {
@@ -995,19 +892,16 @@ namespace ours_varbit {
       return header;
     };
 
-    double max_error_eval = numeric_limits<double>::lowest();
+    double max_error_eval = 0.f;
     for (const auto &b : solution){
-      double error;
-      bool should_be_true = assign_weights(b, tmp_weights, &error);
+      double max_block_error;
+      assign_weights(b, tmp_weights, &max_block_error);
 
-      max_error_eval = max(max_error_eval, error);
-      if (!should_be_true)
-      {
-        wrong_colors[b.bpw] += 1;
-      }
-      else
-      {
-        ok_colors[b.bpw] += 1;
+      max_error_eval = max(max_error_eval, max_block_error);
+      if (max_block_error > error_treshold_) {
+        wrong_blocks[b.bpw] += 1;
+      } else {
+        correct_blocks[b.bpw] += 1;
       }
 
       if ((b.start_node % macro_block_size) == 0)
