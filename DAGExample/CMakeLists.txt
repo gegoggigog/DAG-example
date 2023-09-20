@@ -3,12 +3,6 @@ enable_language(CUDA CXX)
 # https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#code-changes-for-separate-compilation
 # https://developer.nvidia.com/blog/separate-compilation-linking-cuda-device-code/
 
-include_directories(${CMAKE_CURRENT_LIST_DIR})
-include_directories(ColorCompression)
-include_directories(src)
-include_directories(DAGLoader)
-include_directories(DAGTracer)
-
 #find_package(OpenMP)
 
 add_library(CommonCompilerFlags INTERFACE)
@@ -99,13 +93,16 @@ set_target_properties(ColorCompression
 
 add_executable(DAG_Compression
     DAGLoader/DAGLoader/DAGLoader.cpp
-    DAGLoader/DAGLoader/DAGLoader.h
     DAGTracer/DAGTracer/DAGTracer.cu
-    DAGTracer/DAGTracer/DAGTracer.h
     src/my_exe.cpp
     src/voxelize_and_merge.cpp
-    src/voxelize_and_merge.h
-    src/app.hpp
+)
+
+target_include_directories(DAG_Compression 
+    PRIVATE 
+        src
+        DAGLoader
+        DAGTracer
 )
 
 target_link_libraries(DAG_Compression
