@@ -416,34 +416,29 @@ namespace ours_varbit {
     vector<uint32_t> tmp_weights;
     tmp_weights.resize(n_colors);
 
-    const auto startTime = std::chrono::high_resolution_clock::now();
+    vector<end_block> solution;
+    auto startTime = std::chrono::high_resolution_clock::now();
     for (std::size_t mb_idx = 0; mb_idx < n_mb; mb_idx++)
     {
         printProgression(mb_idx, n_mb, h_block_headers.size(), startTime);
-        const bool is_last_mb        = (mb_idx + 1 == n_mb);
+        const bool is_last_mb = (mb_idx + 1 == n_mb);
         const size_t current_mb_size = is_last_mb ? (n_colors % macro_block_size) : macro_block_size;
-        const size_t mb_start        = mb_idx * macro_block_size;
-        const vector<end_block> solution = compress_range(mb_start, current_mb_size);
-        double max_error_eval = append_macro_block(solution,
-                                                   global_bptr,
-                                                   macro_w_bptr,
-                                                   tmp_weights,
-                                                   wrong_colors,
-                                                   ok_colors);
-        n_blocks += solution.size();
-
-        if (p_nfo) {
-            for (const auto& b : solution) {
-                p_nfo->total_bits += b.range * b.bpw + HEADER_COST + COLOR_COST;
-            }
-            p_nfo->max_error = max(max_error_eval, p_nfo->max_error);
-        }
+        const size_t mb_start = mb_idx * macro_block_size;
+        const vector<end_block> tmp = compress_range(mb_start, current_mb_size);
+        solution.insert(solution.end(), tmp.begin(), tmp.end());
+        //n_blocks += solution.size();
     }
+    // NOTE: Can also do this inside compress range for-loop
+    double max_error_eval = append_macro_block(solution, global_bptr, macro_w_bptr, tmp_weights, wrong_colors, ok_colors);
     if (p_nfo) {
+        for (const auto& b : solution) {
+            p_nfo->total_bits += b.range * b.bpw + HEADER_COST + COLOR_COST;
+        }
+        p_nfo->max_error    = max_error_eval;
         p_nfo->ok_colors    = std::move(ok_colors);
         p_nfo->wrong_colors = std::move(wrong_colors);
     }
-
+    n_blocks = solution.size();
     h_weights.resize((global_bptr + 31) / 32);
 
     // Write essential data
