@@ -77,7 +77,6 @@ namespace ours_varbit {
   public:
     const unsigned max_bits_per_weight = 4;
     const unsigned min_bits_per_weight = 0;
-    //const unsigned K = 1 << max_bits_per_weight;
 
     const int COLOR_COST      = 16 + 16;
     const int START_IDX_COST  = 14;
@@ -85,24 +84,24 @@ namespace ours_varbit {
     const int BPW_ID_COST     = 2;
     const int HEADER_COST     = 32;
 
-    ColorLayout compression_layout;
+    ColorLayout color_layout_;
     const float error_treshold;
 
-    disc_vector<uint32_t> original_colors_ref;
+    disc_vector<uint32_t> original_colors_;
     vector<uint32_t> m_weights;
 
     vector<uint32_t> h_weights;
     vector<uint32_t> h_block_headers;
     vector<uint8_t>  h_block_colors;
     vector<uint64_t> h_macro_block_headers;
-
-    explicit CompressionState(disc_vector<uint32_t>&& original_colors, const float error_treshold_, const ColorLayout layout)
-      : COLOR_COST{getColorCost(layout)}
-      , original_colors_ref{ std::move(original_colors) }
-      , error_treshold{ error_treshold_ }
-      , compression_layout{ layout }
+    // FIXME: error_threshold ambiguities
+    explicit CompressionState(disc_vector<uint32_t>&& t_original_colors, const float t_error_treshold, const ColorLayout t_color_layout)
+      : COLOR_COST{getColorCost(t_color_layout)}
+      , original_colors_{ std::move(t_original_colors) }
+      , error_treshold{ t_error_treshold }
+      , color_layout_{ t_color_layout }
     {
-      const size_t n_colors = original_colors_ref.size();
+      const size_t n_colors = original_colors_.size();
       const uint64_t bits_required = n_colors * max_bits_per_weight;
       m_weights.resize(n_colors);
       h_weights.resize((bits_required + 31)/32);
@@ -112,7 +111,7 @@ namespace ours_varbit {
 
     vector<end_block> compress_range(size_t part_start, size_t part_size);
 
-    double add_to_final(
+    double append_macro_block(
       const vector<end_block>& solution,
       size_t& global_bptr,
       size_t& macro_w_bptr,
@@ -130,16 +129,16 @@ namespace ours_varbit {
 
     vec3 ref_color(std::size_t start)
     {
-      switch (compression_layout)
+      switch (color_layout_)
       {
         case R_8:
         case R_4:
-            return r8_to_float3(original_colors_ref[start]);
+            return r8_to_float3(original_colors_[start]);
         case RG_8_8:
-            return rg88_to_float3(original_colors_ref[start]);
+            return rg88_to_float3(original_colors_[start]);
         case RGB_5_6_5:
         default:
-            return rgb888_to_float3(original_colors_ref[start]);
+            return rgb888_to_float3(original_colors_[start]);
       }
     };
   };
@@ -410,7 +409,7 @@ namespace ours_varbit {
     {
       for (std::size_t i = eb.start_node; i < eb.start_node + eb.range; i++)
       {
-        if (i >= original_colors_ref.size())
+        if (i >= original_colors_.size())
         {
           cout << "YOU HAVE MESSED UP YOU SILLY GOOSE!\n";
         }
@@ -511,7 +510,7 @@ namespace ours_varbit {
     {
 	  for (std::size_t i = eb.start_node; i < eb.start_node + eb.range; i++)
       {
-        if (i >= original_colors_ref.size())
+        if (i >= original_colors_.size())
         {
           cout << "YOU HAVE MESSED UP YOU SILLY GOOSE!\n";
         }
@@ -621,7 +620,7 @@ namespace ours_varbit {
     std::vector<int> wrong_colors(max_bits_per_weight + 1, 0);
     std::vector<int> ok_colors(max_bits_per_weight + 1, 0);
 
-    const std::size_t n_colors = original_colors_ref.size();
+    const std::size_t n_colors = original_colors_.size();
     const std::size_t n_mb     = (n_colors + macro_block_size - 1) / macro_block_size;
 
     size_t global_bptr = 0;
@@ -636,11 +635,11 @@ namespace ours_varbit {
         const size_t current_mb_size = is_last_mb ? (n_colors % macro_block_size) : macro_block_size;
         const size_t mb_start        = mb_idx * macro_block_size;
         const vector<end_block> solution = compress_range(mb_start, current_mb_size);
-        double max_error_eval = add_to_final(solution,
-                                            global_bptr,
-                                            macro_w_bptr,
-                                            wrong_colors,
-                                            ok_colors);
+        double max_error_eval = append_macro_block(solution,
+                                                   global_bptr,
+                                                   macro_w_bptr,
+                                                   wrong_colors,
+                                                   ok_colors);
         n_blocks += solution.size();
 
         if (p_nfo) {
@@ -664,7 +663,7 @@ namespace ours_varbit {
     p_data->h_block_colors        = std::move(h_block_colors);
     p_data->h_weights             = std::move(h_weights);
     p_data->h_macro_block_headers = std::move(h_macro_block_headers);
-    p_data->color_layout          = compression_layout;
+    p_data->color_layout          = color_layout_;
   }
 
   vector<end_block> CompressionState::compress_range(size_t part_start, size_t part_size)
@@ -733,7 +732,7 @@ namespace ours_varbit {
                    weights,
                    colorRanges,
                    error_treshold,
-                   compression_layout,
+                   color_layout_,
                    max_w);
 
         cudaError_t err = cudaGetLastError();
@@ -838,7 +837,7 @@ namespace ours_varbit {
                    weights,
                    colorRanges,
                    error_treshold,
-                   compression_layout,
+                   color_layout_,
                    max_w,
                    true);
 
@@ -970,7 +969,7 @@ namespace ours_varbit {
     return solution;
   }
 
-  double CompressionState::add_to_final(
+  double CompressionState::append_macro_block(
     const vector<end_block>& solution,
     size_t& global_bptr,
     size_t& macro_w_bptr,
@@ -1034,7 +1033,7 @@ namespace ours_varbit {
       // Add block colors.
       if (b.bpw > 0)
       {
-        switch (compression_layout)
+        switch (color_layout_)
         {
         case R_4: {
           uint32_t minC = float3_to_r4(b.minpoint);
@@ -1074,7 +1073,7 @@ namespace ours_varbit {
       }
       else
       {
-        switch (compression_layout)
+        switch (color_layout_)
         {
         case R_4: {
           uint32_t theC = float3_to_r8(b.maxpoint);
