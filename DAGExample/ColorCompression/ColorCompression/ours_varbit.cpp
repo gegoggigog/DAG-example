@@ -811,7 +811,13 @@ namespace ours_varbit {
               const float distance =
                   length(eb.maxpoint - eb.minpoint) < (1e-4f) ?
                   0.0f :
-                  dot(original_color - eb.minpoint, eb.maxpoint - eb.minpoint) / dot(eb.maxpoint - eb.minpoint, eb.maxpoint - eb.minpoint);
+                  length(original_color - eb.minpoint) / length(eb.maxpoint - eb.minpoint);
+
+              // FIXME: (check) This surely must be a bug.
+              //const float distance =
+              //    length(eb.maxpoint - eb.minpoint) < (1e-4f) ?
+              //    0.0f :
+              //    dot(original_color - eb.minpoint, eb.maxpoint - eb.minpoint) / dot(eb.maxpoint - eb.minpoint, eb.maxpoint - eb.minpoint);
 
               auto calc_w = [&](const float distance) {
                       const int w = static_cast<int>(round(distance * float(max_w)));
