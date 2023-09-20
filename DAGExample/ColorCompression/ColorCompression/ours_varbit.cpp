@@ -77,7 +77,7 @@ namespace ours_varbit {
   public:
     const unsigned max_bits_per_weight = 4;
     const unsigned min_bits_per_weight = 0;
-    const unsigned K = 1 << max_bits_per_weight;
+    //const unsigned K = 1 << max_bits_per_weight;
 
     const int COLOR_COST      = 16 + 16;
     const int START_IDX_COST  = 14;
@@ -685,7 +685,7 @@ namespace ours_varbit {
         bits_per_weight <= max_bits_per_weight;
         bits_per_weight++)
     {
-      unsigned vals_per_weight = 1 << bits_per_weight;
+      const unsigned max_w = (1 << bits_per_weight)-1;
 
       size_t block_index = 0;
       vector<BlockBuild> buildBlocks(workingColorSet.size(), BlockBuild(-1));
@@ -734,7 +734,7 @@ namespace ours_varbit {
                    colorRanges,
                    error_treshold,
                    compression_layout,
-                   vals_per_weight);
+                   max_w);
 
         cudaError_t err = cudaGetLastError();
 		if( cudaSuccess != err ) {
@@ -839,7 +839,7 @@ namespace ours_varbit {
                    colorRanges,
                    error_treshold,
                    compression_layout,
-                   vals_per_weight,
+                   max_w,
                    true);
 
         // Insert the blocks into our block tree.

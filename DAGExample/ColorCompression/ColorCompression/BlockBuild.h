@@ -28,6 +28,6 @@ void scores_gpu(const std::vector<BlockBuild> &blocks,
 				std::vector<float3> &colorRanges,
 				float error_treshold,
 				ColorLayout layout,
-				int K,
+				int max_w,
 				bool finalEval = false);
 #endif  // BLOCK_BUILD_H

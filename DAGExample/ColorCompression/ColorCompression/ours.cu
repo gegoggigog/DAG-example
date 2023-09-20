@@ -419,7 +419,7 @@ __global__ void scorefunction_gpu_warp(size_t numColors,
                                        float3 * colorRanges,
                                        float error_treshold,
                                        ColorLayout layout,
-                                       int K,
+                                       int max_w,
                                        int * globalJobQueue,
                                        bool finalEval = false) {
   int laneId = threadIdx.x & 31;
@@ -444,7 +444,7 @@ __global__ void scorefunction_gpu_warp(size_t numColors,
 
     float3 minpoint, maxpoint;
 
-    if (K > 1)
+    if (max_w > 0)
     {
       // fit
       if (range == 1)
@@ -578,7 +578,7 @@ __global__ void scorefunction_gpu_warp(size_t numColors,
     // evaluate
     bool bEval = true;
     float mse = 0.0f;
-    if (K > 1)
+    if (max_w > 0)
     {
       if (range == 1)
       {
@@ -613,8 +613,8 @@ __global__ void scorefunction_gpu_warp(size_t numColors,
             distance = colorRangeInvSq * dot(p - A, B - A);
           }
 
-          float w = clamp(round(distance * float(K - 1)), 0.0f, float(K - 1));
-          float3 interpolated_color = A + w / float(K - 1) * (B - A);
+          float w = clamp(round(distance * float(max_w)), 0.0f, float(max_w));
+          float3 interpolated_color = A + w / float(max_w) * (B - A);
 
           float error = getError<minmaxcorrection>(p, interpolated_color);
           msesum += getErrorSquared<minmaxcorrection>(p, interpolated_color);
@@ -663,7 +663,7 @@ __global__ void scorefunction_gpu_warp(size_t numColors,
 
     float score = bEval ? 1.0f / (mse + 1.0f) : -1.0f;
 
-    if (K > 1 && range == 2 && bEval)
+    if (max_w > 0 && range == 2 && bEval)
     {
       score = 1.0f / (length(colors[start] - colors[start + 1]) + 1.0f);
     }
@@ -715,7 +715,7 @@ void scores_gpu(const std::vector<BlockBuild> &blocks,
                 std::vector<float3> &colorRanges,
                 float error_treshold,
                 ColorLayout layout,
-                int K,
+                int max_w,
                 bool finalEval)
 {
   if (g_numColors == 0)
@@ -767,7 +767,7 @@ void scores_gpu(const std::vector<BlockBuild> &blocks,
         pColorRanges,
         error_treshold,
         layout,
-        K,
+        max_w,
         jobQueue,
         finalEval);
   }
